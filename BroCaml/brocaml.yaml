@@ -1,0 +1,28 @@
+---
+group:
+  - name: Alyssa Hsu
+    netid: ah2279
+  - name: Shannon Liu
+    netid: sjl356
+  - name: Jo Raghavan
+    netid: jbr266
+  - name: Brooke Ye
+    netid: by239
+pm:
+  name: Hubert
+  netid: hmh92
+publish: true
+title: "brOCaml"
+git-repo: "https://github.com/halyssa/brOCaml"
+# Replace the URL with your own demo video. (TODO)
+demo-video-url: "https://www.youtube.com/watch?v=eSBybJGZoCU"
+# Write a short, attention-grabbing description of your project. (TODO)
+desc: >
+  Our project is an interactive calculator. It supports standard mathematical
+  operations like addition, multiplication, negation, and division on both
+  integers and floating-point numbers. The interface is completely
+  programmable--new functions can easily be defined and assigned to new "keys"
+  in the visual interface.
+
+  Standard visual I/O is supported, but the calculator can also emit sound. By
+  pressing down a special key, it can play a fugue by J.S. Bach.
