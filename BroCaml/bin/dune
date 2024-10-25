@@ -1,0 +1,5 @@
+(executable
+ (public_name BroCaml)
+ (name main)
+ (libraries BroCaml)
+ (preprocess (pps lwt_ppx)))
