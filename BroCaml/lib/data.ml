@@ -1,4 +1,3 @@
-
 open User
 open Cohttp_lwt_unix
 
@@ -42,24 +41,73 @@ let parse_eateries json =
           |> List.map (fun eatery ->
                  let name = eatery |> member "name" |> to_string in
                  let menu_items =
-                   match eatery |> member "operatingHours" with
-                   | `Null -> []
-                   | operating_hours_json ->
-                       operating_hours_json |> to_list
-                       |> List.map (fun hours ->
-                              match hours |> member "menu" with
-                              | `Null -> []
-                              | menu_json ->
-                                  menu_json |> to_list
-                                  |> List.map (fun menu ->
-                                         match menu |> member "items" with
-                                         | `Null -> []
-                                         | items_json ->
-                                             items_json |> to_list
-                                             |> List.map (fun item ->
-                                                    item |> member "item"
-                                                    |> to_string)))
-                       |> List.flatten |> List.flatten
+                   let dining_items =
+                     match eatery |> member "diningItems" with
+                     | `Null -> [] (* Handle case where diningItems is null *)
+                     | items_json -> items_json |> to_list
+                   in
+                   let operating_hours =
+                     match eatery |> member "operatingHours" with
+                     | `Null ->
+                         [] (* Handle case where operatingHours is null *)
+                     | hours_json -> hours_json |> to_list
+                   in
+                   (* Collect all menu items from operating hours and their
+                      events *)
+                   let menu_from_events =
+                     operating_hours
+                     |> List.fold_left
+                          (fun acc hour ->
+                            match hour |> member "events" with
+                            | `Null -> acc
+                            | events_json ->
+                                let events_list = events_json |> to_list in
+                                (* Extract items from each event's menu *)
+                                acc
+                                @ (events_list
+                                  |> List.fold_left
+                                       (fun acc event ->
+                                         match event |> member "menu" with
+                                         | `Null -> acc
+                                         | menu_json ->
+                                             let menu_list =
+                                               menu_json |> to_list
+                                             in
+                                             (* Extract items from each
+                                                category's items in the menu *)
+                                             acc
+                                             @ (menu_list
+                                               |> List.fold_left
+                                                    (fun acc category ->
+                                                      match
+                                                        category
+                                                        |> member "items"
+                                                      with
+                                                      | `Null -> acc
+                                                      | items_json ->
+                                                          let items_list =
+                                                            items_json
+                                                            |> to_list
+                                                          in
+                                                          acc
+                                                          @ (items_list
+                                                            |> List.map
+                                                                 (fun item ->
+                                                                   item
+                                                                   |> member
+                                                                        "item"
+                                                                   |> to_string)
+                                                            ))
+                                                    []))
+                                       []))
+                          []
+                   in
+                   if List.length menu_from_events > 0 then menu_from_events
+                   else if List.length dining_items > 0 then
+                     dining_items
+                     |> List.map (fun item ->
+                            item |> member "item" |> to_string)
+                   else [] (* Return an empty list if both are empty *)
                  in
                  { name; menu = menu_items })
         in
