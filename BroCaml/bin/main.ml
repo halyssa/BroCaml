@@ -54,9 +54,5 @@ let main () =
   let%lwt eateries = get_data () in
   let () = prompt_user eateries in
   Lwt.return_unit
-(* List.iter (fun eatery -> Printf.printf "Eatery: %s\n" eatery.name;
-   Printf.printf "Menu Items:\n"; List.iter (fun item -> Printf.printf " - %s\n"
-   item) eatery.menu; Printf.printf "\n" (* For better separation between
-   eateries *)) eateries; *)
 
 let () = Lwt_main.run (main ())
