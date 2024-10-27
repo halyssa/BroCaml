@@ -1,4 +1,5 @@
 (library
  (name BroCaml)
+ (modules user data)
  (libraries lwt lwt.unix cohttp-lwt-unix yojson)
  (preprocess (pps lwt_ppx)))
