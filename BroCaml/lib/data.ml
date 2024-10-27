@@ -30,91 +30,98 @@ let fetch_json url =
 
 (** [parse_eateries] parses the given JSON object [json] and returns an Lwt list
     of eateries. *)
-let parse_eateries json =
-  let open Yojson.Safe.Util in
-  try
-    match json |> member "data" |> member "eateries" with
-    | `Null -> Lwt.return [] (* Return an empty list if "eateries" is null *)
-    | eateries_json ->
-        let eateries =
-          eateries_json |> to_list
-          |> List.map (fun eatery ->
-                 let name = eatery |> member "name" |> to_string in
-                 let menu_items =
-                   let dining_items =
-                     match eatery |> member "diningItems" with
-                     | `Null -> [] (* Handle case where diningItems is null *)
-                     | items_json -> items_json |> to_list
-                   in
-                   let operating_hours =
-                     match eatery |> member "operatingHours" with
-                     | `Null ->
-                         [] (* Handle case where operatingHours is null *)
-                     | hours_json -> hours_json |> to_list
-                   in
-                   (* Collect all menu items from operating hours and their
-                      events *)
-                   let menu_from_events =
-                     operating_hours
-                     |> List.fold_left
-                          (fun acc hour ->
-                            match hour |> member "events" with
-                            | `Null -> acc
-                            | events_json ->
-                                let events_list = events_json |> to_list in
-                                (* Extract items from each event's menu *)
-                                acc
-                                @ (events_list
-                                  |> List.fold_left
-                                       (fun acc event ->
-                                         match event |> member "menu" with
-                                         | `Null -> acc
-                                         | menu_json ->
-                                             let menu_list =
-                                               menu_json |> to_list
-                                             in
-                                             (* Extract items from each
-                                                category's items in the menu *)
-                                             acc
-                                             @ (menu_list
-                                               |> List.fold_left
-                                                    (fun acc category ->
-                                                      match
-                                                        category
-                                                        |> member "items"
-                                                      with
-                                                      | `Null -> acc
-                                                      | items_json ->
-                                                          let items_list =
-                                                            items_json
-                                                            |> to_list
-                                                          in
-                                                          acc
-                                                          @ (items_list
-                                                            |> List.map
-                                                                 (fun item ->
-                                                                   item
-                                                                   |> member
-                                                                        "item"
-                                                                   |> to_string)
-                                                            ))
-                                                    []))
-                                       []))
-                          []
-                   in
-                   if List.length menu_from_events > 0 then menu_from_events
-                   else if List.length dining_items > 0 then
-                     dining_items
-                     |> List.map (fun item ->
-                            item |> member "item" |> to_string)
-                   else [] (* Return an empty list if both are empty *)
-                 in
-                 { name; menu = menu_items })
-        in
-        Lwt.return eateries
-  with e ->
-    print_endline ("Unexpected error in parse_eateries: " ^ Printexc.to_string e);
-    Lwt.return []
+    let parse_eateries json =
+      let open Yojson.Safe.Util in
+      try
+        match json |> member "data" |> member "eateries" with
+        | `Null -> Lwt.return [] (* Return an empty list if "eateries" is null *)
+        | eateries_json ->
+            let eateries =
+              eateries_json |> to_list
+              |> List.map (fun eatery ->
+                     let name = eatery |> member "name" |> to_string in
+                     let menu_items =
+                       let dining_items =
+                         match eatery |> member "diningItems" with
+                         | `Null -> [] (* Handle case where diningItems is null *)
+                         | items_json -> items_json |> to_list
+                       in
+                       let operating_hours =
+                         match eatery |> member "operatingHours" with
+                         | `Null ->
+                             [] (* Handle case where operatingHours is null *)
+                         | hours_json -> hours_json |> to_list
+                       in
+                       (* Collect all menu items from operating hours and their events *)
+                       let menu_from_events =
+                         operating_hours
+                         |> List.fold_left
+                              (fun acc hour ->
+                                match hour |> member "events" with
+                                | `Null -> acc
+                                | events_json ->
+                                    let events_list = events_json |> to_list in
+                                    (* Extract items from each event's menu *)
+                                    acc
+                                    @ (events_list
+                                      |> List.fold_left
+                                           (fun acc event ->
+                                             match event |> member "menu" with
+                                             | `Null -> acc
+                                             | menu_json ->
+                                                 let menu_list =
+                                                   menu_json |> to_list
+                                                 in
+                                                 (* Extract items from each
+                                                    category's items in the menu *)
+                                                 acc
+                                                 @ (menu_list
+                                                   |> List.fold_left
+                                                        (fun acc category ->
+                                                          match
+                                                            category
+                                                            |> member "items"
+                                                          with
+                                                          | `Null -> acc
+                                                          | items_json ->
+                                                              let items_list =
+                                                                items_json
+                                                                |> to_list
+                                                              in
+                                                              acc
+                                                              @ (items_list
+                                                                |> List.map
+                                                                     (fun item ->
+                                                                       item
+                                                                       |> member
+                                                                            "item"
+                                                                       |> to_string)
+                                                                ))
+                                                        []))
+                                           []))
+                              []
+                       in
+                       if List.length menu_from_events > 0 then menu_from_events
+                       else if List.length dining_items > 0 then
+                         dining_items
+                         |> List.map (fun item ->
+                                item |> member "item" |> to_string)
+                       else
+                         (* If both diningItems and operatingHours/events/menu/items are empty,
+                            look at diningCuisines *)
+                         match eatery |> member "diningCuisines" with
+                         | `Null -> [] (* Handle case where diningCuisines is null *)
+                         | cuisines_json ->
+                             cuisines_json |> to_list
+                             |> List.map (fun cuisine ->
+                                    cuisine |> member "name" |> to_string)
+                     in
+                     { name; menu = menu_items })
+            in
+            Lwt.return eateries
+      with e ->
+        print_endline ("Unexpected error in parse_eateries: " ^ Printexc.to_string e);
+        Lwt.return []
 
 (** [get_data] returns a Lwt list of eateries from
     "https://now.dining.cornell.edu/api/1.0/dining/eateries.json" *)
