@@ -13,6 +13,17 @@ let eateries =
     create_eatery "Gourmet Grill" [ "Burger"; "Fries"; "Salad" ];
   ]
 
+let contains_helper_test =
+  "contains helper tests"
+  >::: [
+         ( "test_pasta_in_bistro" >:: fun _ ->
+           assert_bool "Pasta should be in Bistro Cafe's menu"
+             (contains_helper "Pasta" eatery1) );
+         ( "test_burger_not_in_bistro" >:: fun _ ->
+           assert_bool "Burger should not be in Bistro Cafe's menu"
+             (not (contains_helper "Burger" eatery1)) );
+       ]
+
 let contains_tests =
   "contains function tests"
   >::: [
@@ -27,5 +38,25 @@ let contains_tests =
              (not (contains "Pizza" eateries)) );
        ]
 
-let tests = "test suite" >::: [ contains_tests ]
+(** [search_test_helper food eateries expected] is a helper function for testing
+    the [search_food] function. It checks whether the result of
+    [search_food food eateries] matches the expected list of eatery names. *)
+let search_test_helper food eateries (expected : string list) bool_expected =
+  "" >:: fun _ ->
+  let result = search_food food eateries in
+  assert_equal bool_expected (result = expected)
+
+let search_food_tests =
+  "serach_food function tests"
+  >::: [
+         search_test_helper "Pasta" eateries [ "Bistro Cafe" ] true;
+         search_test_helper "Salad" eateries
+           [ "Bistro Cafe"; "Gourmet Grill" ]
+           true;
+         search_test_helper "Pizza" eateries [] true;
+       ]
+
+let tests =
+  "test suite" >::: [ contains_helper_test; contains_tests; search_food_tests ]
+
 let _ = run_test_tt_main tests
