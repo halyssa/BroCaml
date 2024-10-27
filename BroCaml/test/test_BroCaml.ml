@@ -27,7 +27,5 @@ let contains_tests =
              (not (contains "Pizza" eateries)) );
        ]
 
-let tests =
-  "test suite" >::: [ ("a trivial test" >:: fun _ -> assert_equal 0 0) ]
-
+let tests = "test suite" >::: [ contains_tests ]
 let _ = run_test_tt_main tests

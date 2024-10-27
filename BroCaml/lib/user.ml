@@ -5,6 +5,7 @@ type eatery = {
   menu : string list;
 }
 
+(** [create_eatery name menu] creates a new [eatery] given a [name] and [menu] *)
 let create_eatery name menu =
   if String.trim name = "" then failwith "Eatery name cannot be empty."
   else if List.length menu = 0 then failwith "Menu cannot be empty."

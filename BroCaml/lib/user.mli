@@ -3,7 +3,10 @@ type eatery
 (** [search_food food] is a list of eateries that is serving [food] for that day*)
 
 val create_eatery : string -> string list -> eatery
+(** [create_eatery] creates an eatery *)
+
 val contains : string -> eatery list -> bool
+(** [contains] checks if a food is in the eateries *)
 
 (* val search_food : string -> eatery list *)
 
