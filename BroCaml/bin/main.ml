@@ -29,9 +29,9 @@ let quit_program () =
 
 let rec prompt_user (eateries : eatery list) =
   print_endline "Please choose a number that best fits your desired action";
-  print_endline "1. Check if a <food> is served at any of the eateries";
+  print_endline "1. Check if a <food> is served at any of the eateries (ex. 1 pizza)";
   (* print_endline "2. Check if a <food> is served at a specific <eatery>"; *)
-  print_endline "2. Search where a <food> is being served";
+  print_endline "2. Search where a <food> is being served (ex. 2 pizza)";
   print_endline "3. Quit";
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
