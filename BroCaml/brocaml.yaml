@@ -14,15 +14,14 @@ pm:
 publish: true
 title: "brOCaml"
 git-repo: "https://github.com/halyssa/brOCaml"
-# Replace the URL with your own demo video. (TODO)
-demo-video-url: "https://www.youtube.com/watch?v=eSBybJGZoCU"
-# Write a short, attention-grabbing description of your project. (TODO)
+demo-video-url: "https://youtu.be/pOVIhKPEyAc"
 desc: >
-  Our project is an interactive calculator. It supports standard mathematical
-  operations like addition, multiplication, negation, and division on both
-  integers and floating-point numbers. The interface is completely
-  programmable--new functions can easily be defined and assigned to new "keys"
-  in the visual interface.
-
-  Standard visual I/O is supported, but the calculator can also emit sound. By
-  pressing down a special key, it can play a fugue by J.S. Bach.
+  FindMyFood is the ultimate terminal-based tool for navigating Cornell’s 
+  eateries and cafes with a personalized twist. Log in, set your cuisine 
+  preferences, and let the program do the rest—sorting search results by 
+  both ratings and your favorite cuisines. Just type in a dish, and it 
+  instantly pulls real-time data on where it’s being served across campus, 
+  prioritizing options that match your tastes and the community’s top ratings. 
+  With seamless menu browsing, popularity sorting, and preference-based 
+  recommendations, Find My Food is your go-to guide for the best of Cornell 
+  dining—right from the command line.
