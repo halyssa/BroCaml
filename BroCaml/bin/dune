@@ -1,5 +1,5 @@
 (executable
  (public_name BroCaml)
  (name main)
- (libraries BroCaml)
+ (libraries BroCaml sqlite3)
  (preprocess (pps lwt_ppx)))
