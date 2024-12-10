@@ -1,147 +1,138 @@
 open BroCaml.Data
 open BroCaml.User
+open BroCaml.Login
 open Lwt
 open Cohttp_lwt_unix
 open Sqlite3
 
-let run_search_food food eateries =
-  let result = search_food food eateries in
-  if result = [] then
-    Printf.printf "Unfortunately, %s is not served in the eateries today. " food
-  else List.iter (fun p -> Printf.printf "%s\n" p) result
-
-let run_contains food eateries =
-  let result = contains food eateries in
-  match result with
-  | true ->
-      Printf.printf
-        "%s is served in the eateries today! Would you like to see where it is \
-         served (y/n)? \n"
-        food;
-      let response = read_line () in
-      if response = "y" then run_search_food food eateries
-  | false ->
-      Printf.printf "Unfortunately, %s is not served in the eateries today. "
-        food
+let current_user : string option ref = ref None
 
 let quit_program () =
   print_endline "Thanks for using FindMyFood!";
   exit 0
 
-let rec prompt_user (eateries : eatery list) =
-  print_endline "\n Please choose a number that best fits your desired action";
+let rate_food public_db personal_db food eatery rating =
+  match !current_user with
+  | None ->
+      Lwt.return
+        (print_endline
+           "Error: No user logged in. Please log in first to submit ratings.")
+  | Some username ->
+      print_string "Would you like to submit your rating anonymously? (y/n): ";
+      let anon = read_line () in
+      let public_username = if anon = "y" then "anonymous" else username in
+
+      (* Function to insert into the public database *)
+      let insert_public () =
+        let query =
+          "INSERT INTO Ratings (eatery_name, food_item, username, rating)\n\
+          \   VALUES (?, ?, ?, ?);"
+        in
+        let stmt = Sqlite3.prepare public_db query in
+        Lwt.finalize
+          (fun () ->
+            Sqlite3.bind_text stmt 1 eatery |> ignore;
+            Sqlite3.bind_text stmt 2 food |> ignore;
+            Sqlite3.bind_text stmt 3 public_username |> ignore;
+            Sqlite3.bind_int stmt 4 rating |> ignore;
+
+            match Sqlite3.step stmt with
+            | Sqlite3.Rc.DONE ->
+                Lwt.return
+                  (print_endline "Rating submitted to the public database!")
+            | Sqlite3.Rc.ERROR ->
+                Lwt.return
+                  (print_endline
+                     ("Error submitting public rating: "
+                    ^ Sqlite3.errmsg public_db))
+            | _ ->
+                Lwt.return
+                  (print_endline
+                     "Unexpected error during public rating submission."))
+          (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+      in
+
+      (* Function to insert into the personal database *)
+      let insert_personal () =
+        let query =
+          "INSERT INTO PersonalRatings (eatery_name, food_item, rating)\n\
+          \   VALUES (?, ?, ?);"
+        in
+        let stmt = Sqlite3.prepare personal_db query in
+        Lwt.finalize
+          (fun () ->
+            Sqlite3.bind_text stmt 1 eatery |> ignore;
+            Sqlite3.bind_text stmt 2 food |> ignore;
+            Sqlite3.bind_int stmt 3 rating |> ignore;
+
+            match Sqlite3.step stmt with
+            | Sqlite3.Rc.DONE ->
+                Lwt.return
+                  (print_endline "Rating submitted to your personal database!")
+            | Sqlite3.Rc.ERROR ->
+                Lwt.return
+                  (print_endline
+                     ("Error submitting personal rating: "
+                    ^ Sqlite3.errmsg personal_db))
+            | _ ->
+                Lwt.return
+                  (print_endline
+                     "Unexpected error during personal rating submission."))
+          (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+      in
+
+      (* Ensure the user exists in the public database *)
+      if%lwt Lwt.return (user_exists public_db username) then
+        let%lwt _ = insert_public () in
+        let%lwt _ = insert_personal () in
+        Lwt.return_unit
+      else
+        Lwt.return
+          (print_endline
+             "Username not found in the public database. Please log in first.")
+
+(* Define a custom exception for database errors *)
+exception BindingError of string
+
+let rec prompt_user (public_db : Sqlite3.db) (personal_db : Sqlite3.db)
+    (eateries : eatery list) : unit Lwt.t =
+  print_endline "\nPlease choose a number that best fits your desired action:";
   print_endline
     "1. Check if a <food> is served at any of the eateries (ex. 1 pizza)";
-  (* print_endline "2. Check if a <food> is served at a specific <eatery>"; *)
   print_endline "2. Search where a <food> is being served (ex. 2 pizza)";
   print_endline "3. Quit";
+  print_endline
+    "4. Rate a food item offered by an eatery (ex. 4 pizza EateryName 5)";
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
   match parts with
   | [ "1"; food ] ->
       run_contains food eateries;
-      prompt_user eateries
-  (* | ["2"; food; eatery] -> contains_helper food (create_eatery eatery); *)
+      prompt_user public_db personal_db eateries
   | [ "2"; food ] ->
       run_search_food food eateries;
-      prompt_user eateries
-  | [ "3" ] -> quit_program ()
+      prompt_user public_db personal_db eateries
+  | [ "3" ] -> Lwt.return (quit_program ())
+  | [ "4"; food; eatery; rating ] -> (
+      try
+        let rating = int_of_string rating in
+        if rating < 1 || rating > 5 then (
+          print_endline "Rating must be between 1 and 5.";
+          prompt_user public_db personal_db eateries)
+        else
+          let%lwt () = rate_food public_db personal_db food eatery rating in
+          prompt_user public_db personal_db eateries
+      with Failure _ ->
+        print_endline "Invalid rating. Please enter a number between 1 and 5.";
+        prompt_user public_db personal_db eateries)
   | _ ->
       print_endline "That action does not exist or is incorrectly formatted.";
-      prompt_user eateries
+      prompt_user public_db personal_db eateries
 
-let user_entered () =
+let user_entered public_db personal_db =
   let%lwt eateries = get_data () in
-  let () = prompt_user eateries in
+  let%lwt () = prompt_user public_db personal_db eateries in
   Lwt.return_unit
-
-(* let () = Lwt_main.run (main ()) *)
-
-(* Connect to the database *)
-(* let connect_db db_file = db_open db_file *)
-
-(* Define a custom exception for database errors *)
-exception BindingError of string
-
-(* Check if a user exists in the database *)
-let user_exists db username =
-  let query = "SELECT COUNT(*) FROM Users WHERE username = ?;" in
-  let stmt = prepare db query in
-  bind_text stmt 1 username |> ignore;
-  match step stmt with
-  | Rc.ROW ->
-      let count = column stmt 0 |> Data.to_int |> Option.value ~default:0 in
-      finalize stmt |> ignore;
-      count > 0
-  | _ ->
-      finalize stmt |> ignore;
-      raise (BindingError "Failed to check if user exists.")
-
-(* Validate a user's credentials (username and password) *)
-let validate_user db username password =
-  let%lwt result =
-    (* Example: Check the database asynchronously *)
-    let query = "SELECT password_hash FROM Users WHERE username = ?;" in
-    let stmt = prepare db query in
-    bind_text stmt 1 username |> ignore;
-    match step stmt with
-    | Rc.ROW ->
-        let stored_hash = column stmt 0 |> Data.to_string |> Option.get in
-        Lwt.return (stored_hash = password)
-        (* Compare password *)
-    | Rc.DONE -> Lwt.return false (* Username not found *)
-    | _ -> Lwt.fail_with "Database error during user validation"
-  in
-  Lwt.return result
-
-let finalize_statement stmt db =
-  match finalize stmt with
-  | Rc.OK -> () (* Finalize succeeded *)
-  | Rc.ERROR -> failwith ("Failed to finalize statement: " ^ errmsg db)
-  | Rc.MISUSE -> failwith "SQLite MISUSE detected during finalize."
-  | other ->
-      failwith ("Unexpected result during finalize: " ^ Rc.to_string other)
-(* Create a new user in the database *)
-
-let create_user db username password : unit =
-  let query = "INSERT INTO Users (username, password_hash) VALUES (?, ?);" in
-  let stmt = prepare db query in
-  try
-    (* Bind the username *)
-    bind_text stmt 1 username |> ignore;
-    (* Bind the password *)
-    bind_text stmt 2 password |> ignore;
-    (* Execute the statement *)
-    match step stmt with
-    | Rc.DONE -> print_endline "User created successfully!"
-    | Rc.ERROR -> raise (BindingError ("Error creating user: " ^ errmsg db))
-    | _ -> raise (BindingError "Unexpected result during user creation")
-    (* Finalize the statement (always clean up, even if an error occurs) *)
-  with exn ->
-    (* Ensure finalization in case of an exception *)
-    finalize_statement stmt db;
-    raise exn
-
-(* Fetch and print all users *)
-let fetch_users db =
-  let query = "SELECT id, username FROM Users;" in
-  let stmt = prepare db query in
-  try
-    print_endline "Users in the database:";
-    while step stmt = Rc.ROW do
-      let id =
-        column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      let username =
-        column stmt 1 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      Printf.printf "ID: %s, Username: %s\n" id username
-    done;
-    finalize_statement stmt db
-  with exn ->
-    (* Ensure finalization in case of an exception *)
-    finalize_statement stmt db;
-    raise exn
 
 (* Prompt the user to log in or create an account *)
 let rec login_or_create_account db =
@@ -159,45 +150,44 @@ let rec login_or_create_account db =
       let password = read_line () in
       if%lwt validate_user db username password then (
         Printf.printf "Welcome back, %s!\n" username;
-        Lwt.return_unit (* Exit recursion on success *))
+        current_user := Some username;
+        (* Set the current user *)
+        Lwt.return_unit
+        (* Exit recursion on success *))
       else (
-        print_endline "Invalid username or password. Please try again. \n";
+        print_endline "Invalid username or password. Please try again.\n";
         login_or_create_account db (* Recursive call *))
   | "2" ->
       (* Account creation flow *)
       print_string "Choose a username: ";
       let username = read_line () in
       if%lwt Lwt.return (user_exists db username) then (
-        print_endline
-          "This username is already taken. Please choose another. \n";
+        print_endline "This username is already taken. Please choose another.\n";
         login_or_create_account db)
       else (
         print_string "Choose a password: ";
         let password = read_line () in
-        Lwt.return (create_user db username password))
+        Lwt.return
+          (create_user db username password;
+           print_endline "Account created successfully!";
+           current_user := Some username))
+      (* Set the current user *)
   | "3" -> quit_program ()
   | _ ->
       (* Invalid input, prompt again *)
-      print_endline "Invalid choice. Please try again. \n";
+      print_endline "Invalid choice. Please try again.\n";
       login_or_create_account db
-
-let connect_db_checked db_file =
-  if not (Sys.file_exists db_file) then
-    failwith ("Database file not found: " ^ db_file);
-  db_open db_file
 
 (* main *)
 let () =
-  let db_file = "findmyfood.db" in
-  let db = connect_db_checked db_file in
-  print_endline ("Debug: Using database file -> " ^ db_file);
+  let public_db_file = "findmyfood.db" in
+  let personal_db_file = "personal_ratings.db" in
 
-  (* Run Lwt computation *)
+  let public_db = connect_db_checked public_db_file in
+  let personal_db = connect_db_checked personal_db_file in
   Lwt_main.run
-    (let%lwt () = login_or_create_account db in
-     (* Fetch and print all users (optional for debugging) *)
-     (* let%lwt () = Lwt.return (fetch_users db) in *)
-     Lwt.return_unit);
+    (let%lwt () = login_or_create_account public_db in
+     user_entered public_db personal_db);
 
-  (* Close the database *)
-  db_close db |> ignore
+  db_close public_db |> ignore;
+  db_close personal_db |> ignore

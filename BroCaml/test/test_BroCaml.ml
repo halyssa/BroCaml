@@ -5,6 +5,7 @@ open Cohttp_lwt_unix
 open Yojson
 open BroCaml.User
 open BroCaml.Data
+open BroCaml.Login
 
 (* Sample eateries for testing *)
 let eatery1 = create_eatery "Bistro Cafe" [ "Pasta"; "Salad"; "Soup" ]
@@ -93,8 +94,53 @@ let parse_eateries_tests =
          >:: test_parse_eateries_missing_eateries;
        ]
 
-let tests =
-  "test suite"
+(*testing for login*)
+let setup_test_db () =
+  let db = Sqlite3.db_open ":memory:" in
+  let create_table_query =
+    "CREATE TABLE Users ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT \
+     NOT NULL UNIQUE, password_hash TEXT NOT NULL);"
+  in
+  ignore (Sqlite3.exec db create_table_query);
+  db
+
+let test_user_exists _ =
+  let db = setup_test_db () in
+  let insert_query =
+    "INSERT INTO Users (username, password_hash) VALUES ('test_user', \
+     'hash123');"
+  in
+  ignore (Sqlite3.exec db insert_query);
+
+  assert_bool "User should exist" (user_exists db "test_user");
+  assert_bool "User should not exist" (not (user_exists db "non_existent_user"))
+
+let test_validate_user _ =
+  let db = setup_test_db () in
+  let insert_query =
+    "INSERT INTO Users (username, password_hash) VALUES ('test_user', \
+     'hash123');"
+  in
+  ignore (Sqlite3.exec db insert_query);
+
+  let result = Lwt_main.run (validate_user db "test_user" "hash123") in
+  assert_bool "Validation should succeed" result;
+
+  let result = Lwt_main.run (validate_user db "test_user" "wrong_hash") in
+  assert_bool "Validation should fail with wrong password" (not result);
+
+  let result = Lwt_main.run (validate_user db "non_existent_user" "hash123") in
+  assert_bool "Validation should fail for non-existent user" (not result)
+
+let login_tests =
+  "login tests"
+  >::: [
+         "test_user_exists" >:: test_user_exists;
+         "test_validate_user" >:: test_validate_user;
+       ]
+
+let eatery_tests =
+  "eatery test suite"
   >::: [
          contains_helper_test;
          contains_tests;
@@ -102,6 +148,7 @@ let tests =
          contains_duplicate_food_test;
          parse_eateries_tests;
          get_data_tests;
+         login_tests;
        ]
 
-let _ = run_test_tt_main tests
+let _ = run_test_tt_main eatery_tests
