@@ -37,3 +37,4 @@ CREATE TABLE PersonalRatings (
     food_item TEXT NOT NULL,
     rating INTEGER CHECK(rating BETWEEN 1 AND 5)
 );
+

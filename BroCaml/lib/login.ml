@@ -3,7 +3,6 @@ open Sqlite3
 exception BindingError of string
 
 (* Check if a user exists in the database *)
-
 let user_exists db username =
   let query = "SELECT COUNT(*) FROM Users WHERE username = ?;" in
   let stmt = prepare db query in
@@ -37,29 +36,24 @@ let validate_user db username password =
 
 let finalize_statement stmt db =
   match finalize stmt with
-  | Rc.OK -> () (* Finalize succeeded *)
+  | Rc.OK -> ()
   | Rc.ERROR -> failwith ("Failed to finalize statement: " ^ errmsg db)
   | Rc.MISUSE -> failwith "SQLite MISUSE detected during finalize."
   | other ->
       failwith ("Unexpected result during finalize: " ^ Rc.to_string other)
-(* Create a new user in the database *)
 
+(* Create a new user in the database *)
 let create_user db username password : unit =
   let query = "INSERT INTO Users (username, password_hash) VALUES (?, ?);" in
   let stmt = prepare db query in
   try
-    (* Bind the username *)
     bind_text stmt 1 username |> ignore;
-    (* Bind the password *)
     bind_text stmt 2 password |> ignore;
-    (* Execute the statement *)
     match step stmt with
     | Rc.DONE -> print_endline "User created successfully!"
     | Rc.ERROR -> raise (BindingError ("Error creating user: " ^ errmsg db))
     | _ -> raise (BindingError "Unexpected result during user creation")
-    (* Finalize the statement (always clean up, even if an error occurs) *)
   with exn ->
-    (* Ensure finalization in case of an exception *)
     finalize_statement stmt db;
     raise exn
 

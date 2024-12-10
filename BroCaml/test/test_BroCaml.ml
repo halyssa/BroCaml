@@ -17,12 +17,25 @@ let eateries = [ eatery1; eatery2; eatery3 ]
 let contains_helper_test =
   "contains helper tests"
   >::: [
-         ( "test_pasta_in_bistro" >:: fun _ ->
-           assert_bool "Pasta should be in Bistro Cafe's menu"
-             (contains_helper "Pasta" eatery1) );
-         ( "test_burger_not_in_bistro" >:: fun _ ->
-           assert_bool "Burger should not be in Bistro Cafe's menu"
-             (not (contains_helper "Burger" eatery1)) );
+         ( "food in any eatery menu, exact match" >:: fun _ ->
+           assert_bool "Pasta should be found in eateries"
+             (contains "Pasta" eateries) );
+         ( "food in any eatery menu, case-insensitive match" >:: fun _ ->
+           assert_bool "burger should be found in eateries"
+             (contains "burger" eateries) );
+         ( "food not in any eatery menu" >:: fun _ ->
+           assert_bool "Pizza should not be found in eateries"
+             (not (contains "Pizza" eateries)) );
+         ( "food not in any eatery menu" >:: fun _ ->
+           assert_bool "Kale Chips should not be found in eateries"
+             (not (contains "Kale Chips" eateries)) );
+         ( "food with special characters in menu" >:: fun _ ->
+           let eatery_special_chars =
+             create_eatery "Fancy Eatery"
+               [ "Chicken & Waffles"; "Grilled Chicken" ]
+           in
+           assert_bool "Food with special characters should be found"
+             (contains "Chicken & Waffles" [ eatery_special_chars ]) );
        ]
 
 (* Test contains function *)
@@ -132,11 +145,26 @@ let test_validate_user _ =
   let result = Lwt_main.run (validate_user db "non_existent_user" "hash123") in
   assert_bool "Validation should fail for non-existent user" (not result)
 
+let test_validate_special_chars _ =
+  let db = setup_test_db () in
+  let insert_query =
+    "INSERT INTO Users (username, password_hash) VALUES ('user!@#$', \
+     'hash123');"
+  in
+  ignore (Sqlite3.exec db insert_query);
+
+  let result = Lwt_main.run (validate_user db "user!@#$" "hash123") in
+  assert_bool "Validation should succeed" result;
+
+  let result = Lwt_main.run (validate_user db "user!@#$" "wrong_hash") in
+  assert_bool "Validation should fail with wrong password" (not result)
+
 let login_tests =
   "login tests"
   >::: [
          "test_user_exists" >:: test_user_exists;
          "test_validate_user" >:: test_validate_user;
+         "test_validate_special_chars" >:: test_validate_special_chars;
        ]
 
 let eatery_tests =

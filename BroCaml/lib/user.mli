@@ -20,8 +20,3 @@ val run_contains : string -> eatery list -> unit
 
 val run_search_food : string -> eatery list -> unit
 (** [run_serach_food] runs the [search_food] function]. *)
-
-(* val get_data : unit -> eatery list Lwt.t *)
-
-(* val parse_eateries : Yojson.Safe.t -> { name : string; menu : string list
-   } *)

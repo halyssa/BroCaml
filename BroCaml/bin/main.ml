@@ -81,7 +81,6 @@ let rate_food public_db personal_db food eatery rating =
           (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
       in
 
-      (* Ensure the user exists in the public database *)
       if%lwt Lwt.return (user_exists public_db username) then
         let%lwt _ = insert_public () in
         let%lwt _ = insert_personal () in
@@ -91,11 +90,40 @@ let rate_food public_db personal_db food eatery rating =
           (print_endline
              "Username not found in the public database. Please log in first.")
 
-(* Define a custom exception for database errors *)
+(* function to view food ratings *)
+let view_food_rating public_db food eatery =
+  let query =
+    "SELECT AVG(rating) FROM Ratings WHERE food_item = ? AND eatery_name = ? \
+     AND rating IS NOT NULL;"
+  in
+  let stmt = Sqlite3.prepare public_db query in
+  Lwt.catch
+    (fun () ->
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.DONE ->
+          (* No ratings found *)
+          print_endline "No ratings found for this food item at this eatery.";
+          Lwt.return () (* Ensure this returns Lwt.t *)
+      | Sqlite3.Rc.ROW ->
+          (* Extract rating values *)
+          let rating = Sqlite3.column_int stmt 0 in
+          Printf.printf "The rating for %s at %s is %d.\n" food eatery rating;
+          Lwt.return () (* Ensure this returns Lwt.t *)
+      | _ ->
+          (* Handle unexpected SQL error *)
+          print_endline "Error while fetching food ratings.";
+          Lwt.return ()) (* Ensure this returns Lwt.t *)
+    (fun exn ->
+      (* Handle exceptions *)
+      print_endline ("Error: " ^ Printexc.to_string exn);
+      Lwt.return ())
+  >>= fun () ->
+  (* Finalize the statement to release resources *)
+  Lwt.return (Sqlite3.finalize stmt |> ignore)
+
 exception BindingError of string
 
-let rec prompt_user (public_db : Sqlite3.db) (personal_db : Sqlite3.db)
-    (eateries : eatery list) : unit Lwt.t =
+let rec prompt_user public_db personal_db eateries =
   print_endline "\nPlease choose a number that best fits your desired action:";
   print_endline
     "1. Check if a <food> is served at any of the eateries (ex. 1 pizza)";
@@ -103,6 +131,9 @@ let rec prompt_user (public_db : Sqlite3.db) (personal_db : Sqlite3.db)
   print_endline "3. Quit";
   print_endline
     "4. Rate a food item offered by an eatery (ex. 4 pizza EateryName 5)";
+  print_endline
+    "5. View the rating of a <food> item at an <eatery> (ex. 5 pizza \
+     Okenshields)";
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
   match parts with
@@ -125,6 +156,9 @@ let rec prompt_user (public_db : Sqlite3.db) (personal_db : Sqlite3.db)
       with Failure _ ->
         print_endline "Invalid rating. Please enter a number between 1 and 5.";
         prompt_user public_db personal_db eateries)
+  | [ "5"; food; eatery ] ->
+      let%lwt () = view_food_rating public_db food eatery in
+      prompt_user public_db personal_db eateries
   | _ ->
       print_endline "That action does not exist or is incorrectly formatted.";
       prompt_user public_db personal_db eateries
@@ -177,6 +211,50 @@ let rec login_or_create_account db =
       (* Invalid input, prompt again *)
       print_endline "Invalid choice. Please try again.\n";
       login_or_create_account db
+
+let show_ratings db =
+  let query = "SELECT * FROM PersonalRatings;" in
+  let stmt = prepare db query in
+  try
+    print_endline "Displaying all ratings in PersonalRatings:";
+    print_endline "------------------------------------------";
+    while step stmt = Rc.ROW do
+      let eatery_name =
+        column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
+      in
+      let food_item =
+        column stmt 1 |> Data.to_string |> Option.value ~default:"NULL"
+      in
+      let rating = column stmt 2 |> Data.to_int |> Option.value ~default:0 in
+      Printf.printf "Eatery: %s | Food: %s | Rating: %d\n" eatery_name food_item
+        rating
+    done;
+    finalize stmt |> ignore
+  with exn ->
+    finalize stmt |> ignore;
+    raise exn
+
+let show_ratings db =
+  let query = "SELECT * FROM PersonalRatings;" in
+  let stmt = prepare db query in
+  try
+    print_endline "Displaying all ratings in PersonalRatings:";
+    print_endline "------------------------------------------";
+    while step stmt = Rc.ROW do
+      let eatery_name =
+        column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
+      in
+      let food_item =
+        column stmt 1 |> Data.to_string |> Option.value ~default:"NULL"
+      in
+      let rating = column stmt 2 |> Data.to_int |> Option.value ~default:0 in
+      Printf.printf "Eatery: %s | Food: %s | Rating: %d\n" eatery_name food_item
+        rating
+    done;
+    finalize stmt |> ignore
+  with exn ->
+    finalize stmt |> ignore;
+    raise exn
 
 (* main *)
 let () =
