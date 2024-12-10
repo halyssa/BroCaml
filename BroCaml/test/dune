@@ -1,3 +1,4 @@
 (test
  (name test_BroCaml)
- (libraries BroCaml ounit2))
+ (libraries BroCaml ounit2 lwt lwt.unix cohttp-lwt-unix yojson)
+ (preprocess (pps lwt_ppx)))
