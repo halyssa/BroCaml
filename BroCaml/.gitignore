@@ -2,3 +2,4 @@ _build/
 _opam/
 gitlog.txt
 eateries.json
+_coverage/
