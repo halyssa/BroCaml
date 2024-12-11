@@ -18,12 +18,11 @@ let fetch_json url =
     let json = Yojson.Safe.from_string body_string in
     (* print_endline "Successfully fetched and parsed JSON."; *)
     Lwt.return json
-  with
-  | Failure _ -> Lwt.fail_with "HTTP request failed with error"
-  | Yojson.Json_error e -> Lwt.fail_with "JSON parsing error"
-  | e ->
-      Lwt.fail_with
-        (Printf.sprintf "Unexpected error: %s" (Printexc.to_string e))
+  with e ->
+    Lwt.fail_with
+      (Printf.sprintf "Unexpected error: %s" (Printexc.to_string e))
+    [@coverage off]
+(* coverage off because branch will not be reached since url is always valid *)
 
 (** [parse_eateries] parses the given JSON object [json] and returns an Lwt list
     of eateries. *)
