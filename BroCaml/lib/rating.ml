@@ -327,10 +327,7 @@ let rec print_results stmt =
 
 (* sorting by rating *)
 let sort_by_highest_rating db table =
-  let personal_db = connect_db_checked "personal_ratings.db" in
-  Printf.printf "Using database: %s\n"
-    (if db == personal_db then "personal_db" else "public_db");
-  let query = "SELECT * FROM Ratings ORDER BY rating DESC;" in
+  let query = Printf.sprintf "SELECT * FROM %s ORDER BY rating DESC;" table in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
     (fun () ->

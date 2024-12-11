@@ -8,6 +8,10 @@ open BroCaml.Rating
 
 let current_user : string option ref = ref None
 let is_guest : bool ref = ref false
+let public_db_file = "findmyfood.db"
+let personal_db_file = "personal_ratings.db"
+let public_db = connect_db_checked public_db_file
+let personal_db = connect_db_checked personal_db_file
 
 let quit_program () =
   print_endline "Thanks for using FindMyFood!";
@@ -139,8 +143,8 @@ let rec prompt_user_sort_4 db eateries =
 
 let debug_db db description =
   Printf.printf "Debugging DB (%s): %s\n" description
-    (if db == connect_db_checked "personal_ratings.db" then "personal_db"
-     else if db == connect_db_checked "findmyfood.db" then "public_db"
+    (if db == connect_db_checked personal_db_file then "personal_db"
+     else if db == connect_db_checked public_db_file then "public_db"
      else "unknown");
   ()
 
@@ -282,12 +286,6 @@ let debug_list_tables db db_name =
 
 (* main *)
 let () =
-  let public_db_file = "findmyfood.db" in
-  let personal_db_file = "personal_ratings.db" in
-
-  let public_db = connect_db_checked public_db_file in
-  let personal_db = connect_db_checked personal_db_file in
-
   (* debug_list_tables personal_db "personal_db"; debug_list_tables public_db
      "public_db"; *)
   Lwt_main.run
