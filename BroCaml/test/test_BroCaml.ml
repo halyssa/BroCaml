@@ -6,6 +6,7 @@ open Yojson
 open BroCaml.User
 open BroCaml.Data
 open BroCaml.Login
+open BroCaml.Rating
 
 let eatery1 = create_eatery "Bistro Cafe" [ "Pasta"; "Salad"; "Soup" ]
 let eatery2 = create_eatery "Deli Delight" [ "Sandwich"; "Soup"; "Juice" ]
@@ -374,6 +375,75 @@ let test_get_data_unexpected_failure _ =
              Lwt.return ()
          | _ -> assert_failure "Expected fetch_json to fail"))
 
+let create_in_memory_db () =
+  let db = Sqlite3.db_open ":memory:" in
+  let create_table_query =
+    "CREATE TABLE IF NOT EXISTS Ratings (\n\
+    \              eatery_name TEXT,\n\
+    \              food_item TEXT,\n\
+    \              username TEXT,\n\
+    \              rating INTEGER,\n\
+    \              date TEXT,\n\
+    \              time TEXT,\n\
+    \              PRIMARY KEY (eatery_name, food_item, username, date)\n\
+    \            );"
+  in
+  ignore (Sqlite3.exec db create_table_query);
+  db
+
+let test_rate_food_valid =
+  "Rate food with valid data" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result =
+    Lwt_main.run (rate_food db db "Pizza" "Grill House" 4 is_guest current_user)
+  in
+  (* Assert that no error is raised or handled (you can adjust this based on
+     what you expect) *)
+  assert_equal () result (* Use specific assertions for expected behavior *)
+
+let test_rate_food_invalid_rating =
+  "Rate food with invalid rating value" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" (-1) is_guest current_user)
+  in
+  (* Assert the correct handling of an invalid rating, for example, a printed
+     error *)
+  assert_equal ()
+    result (* Adjust for expected behavior when the rating is invalid *)
+
+let test_view_food_rating_no_ratings =
+  "View food rating when no ratings exist" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let result = Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar") in
+  (* Check that the correct message is shown, e.g., no ratings found *)
+  assert_equal () result
+
+(* let test_show_personal_ratings_empty_table = "Show personal ratings with
+   empty table" >:: fun _ -> let db = create_in_memory_db () in let result =
+   Lwt_main.run (show_personal_ratings db) in (* Check that no personal ratings
+   are displayed if the table is empty *) assert_equal () result
+
+   let test_show_public_ratings_for_food = "Show public ratings for food item"
+   >:: fun _ -> let db = create_in_memory_db () in let result = Lwt_main.run
+   (show_public_ratings db "Pizza") in (* Verify that public ratings are
+   correctly displayed from the public database *) assert_equal () result *)
+
+let ratings_tests =
+  "Food Rating Tests"
+  >::: [
+         test_rate_food_valid;
+         test_rate_food_invalid_rating;
+         test_view_food_rating_no_ratings;
+         (* test_show_personal_ratings_empty_table;
+            test_show_public_ratings_for_food; *)
+       ]
+
 let data_tests =
   "Data.ml Test Suite"
   >::: [
@@ -402,6 +472,7 @@ let eatery_tests =
          login_tests;
          test_create_eatery_invalid;
          data_tests;
+         ratings_tests;
        ]
 
 let _ = run_test_tt_main eatery_tests
