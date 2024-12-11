@@ -34,36 +34,39 @@ let validate_user db username password =
          finalize stmt |> ignore;
          raise (BindingError "Database error during user validation."))
 
-let finalize_statement stmt db =
-  match finalize stmt with
-  | Rc.OK -> ()
-  | Rc.ERROR -> failwith ("Failed to finalize statement: " ^ errmsg db)
-  | Rc.MISUSE -> failwith "SQLite MISUSE detected during finalize."
+let finalize_statement ~finalize stmt db =
+  match finalize stmt db with
+  | Sqlite3.Rc.OK -> ()
+  | Sqlite3.Rc.ERROR ->
+      failwith ("Failed to finalize statement: " ^ Sqlite3.errmsg db)
+  | Sqlite3.Rc.MISUSE -> failwith "SQLite MISUSE detected during finalize."
   | other ->
-      failwith ("Unexpected result during finalize: " ^ Rc.to_string other)
+      failwith
+        ("Unexpected result during finalize: " ^ Sqlite3.Rc.to_string other)
 
 (* Create a new user in the database *)
-let create_user db username password : unit =
+let create_user ~finalize db username password =
   let query = "INSERT INTO Users (username, password_hash) VALUES (?, ?);" in
-  let stmt = prepare db query in
+  let stmt = Sqlite3.prepare db query in
   try
-    bind_text stmt 1 username |> ignore;
-    bind_text stmt 2 password |> ignore;
-    match step stmt with
-    | Rc.DONE -> print_endline "User created successfully!"
-    | Rc.ERROR -> raise (BindingError ("Error creating user: " ^ errmsg db))
-    | _ -> raise (BindingError "Unexpected result during user creation")
+    Sqlite3.bind_text stmt 1 username |> ignore;
+    Sqlite3.bind_text stmt 2 password |> ignore;
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.DONE -> print_endline "User created successfully!"
+    | Sqlite3.Rc.ERROR ->
+        raise (Failure ("Error creating user: " ^ Sqlite3.errmsg db))
+    | _ -> raise (Failure "Unexpected result during user creation")
   with exn ->
-    finalize_statement stmt db;
+    finalize stmt db;
     raise exn
 
 (* Fetch and print all users *)
-let fetch_users db =
+let fetch_users ~finalize db =
   let query = "SELECT id, username FROM Users;" in
   let stmt = prepare db query in
   try
     print_endline "Users in the database:";
-    while step stmt = Rc.ROW do
+    while step stmt = Sqlite3.Rc.ROW do
       let id =
         column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
       in
@@ -72,9 +75,10 @@ let fetch_users db =
       in
       Printf.printf "ID: %s, Username: %s\n" id username
     done;
-    finalize_statement stmt db
+    finalize_statement ~finalize stmt db (* Pass finalize function *)
   with exn ->
-    finalize_statement stmt db;
+    finalize_statement ~finalize stmt db;
+    (* Pass finalize function *)
     raise exn
 
 let connect_db_checked db_file =

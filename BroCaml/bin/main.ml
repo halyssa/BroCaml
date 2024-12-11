@@ -341,19 +341,23 @@ let rec login_or_create_account db =
         print_endline "Invalid username or password. Please try again.\n";
         login_or_create_account db (* Recursive call *))
   | "2" ->
-      (* Account creation flow *)
       print_string "Choose a username: ";
       let username = read_line () in
-      if%lwt Lwt.return (user_exists db username) then (
+      let%lwt exists = Lwt.return (user_exists db username) in
+      if exists then (
         print_endline "This username is already taken. Please choose another.\n";
         login_or_create_account db)
       else (
         print_string "Choose a password: ";
         let password = read_line () in
-        Lwt.return
-          (create_user db username password;
+        (* Create the user asynchronously *)
+        let finalize_fn stmt db = ignore (Sqlite3.finalize stmt) in
+        Lwt.ignore_result
+          (create_user ~finalize:finalize_fn db username password;
            print_endline "Account created successfully!";
-           current_user := Some username))
+           current_user := Some username;
+           Lwt.return_unit (* To ensure we're returning a proper Lwt value *));
+        Lwt.return_unit)
   (* Set the current user *)
   | "3" ->
       (* Proceed as a guest *)
