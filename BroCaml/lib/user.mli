@@ -21,12 +21,6 @@ val search_food : string -> eatery list -> string list
 (** [search_food] returns a list of eateries that contains the desired food and
     returns and empty list if nothing is found. *)
 
-val run_contains : string -> eatery list -> unit
-(** [run_contains] runs the [contains] function. *)
-
-val run_search_food : string -> eatery list -> unit
-(** [run_serach_food] runs the [search_food] function. *)
-
 val eatery_exists : string -> eatery list -> bool
 (** [eatery_exists name eateries] returns whether or not an eatery with name
     [name] exists *)

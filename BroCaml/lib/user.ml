@@ -31,20 +31,6 @@ let search_food food eateries =
       if contains_helper food eatery then eatery.name :: acc else acc)
     eateries []
 
-let run_search_food food eateries =
-  let result = search_food food eateries in
-  if result = [] then
-    Printf.printf "Unfortunately, %s is not served in the eateries today. " food
-  else List.iter (fun p -> Printf.printf "%s\n" p) result
-
-let run_contains food eateries =
-  let result = contains food eateries in
-  match result with
-  | true -> run_search_food food eateries
-  | false ->
-      Printf.printf "Unfortunately, %s is not served in the eateries today. "
-        food
-
 let eatery_exists name eateries =
   List.exists
     (fun eatery ->

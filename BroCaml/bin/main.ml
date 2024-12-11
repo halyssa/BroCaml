@@ -15,6 +15,20 @@ let quit_program () =
 
 exception BindingError of string
 
+let run_search_food food eateries =
+  let result = search_food food eateries in
+  if result = [] then
+    Printf.printf "Unfortunately, %s is not served in the eateries today. " food
+  else List.iter (fun p -> Printf.printf "%s\n" p) result
+
+let run_contains food eateries =
+  let result = contains food eateries in
+  match result with
+  | true -> run_search_food food eateries
+  | false ->
+      Printf.printf "Unfortunately, %s is not served in the eateries today. "
+        food
+
 let rec prompt_user_find public_db personal_db eateries =
   print_endline "\n Which number best fits your desired action? ";
   print_endline
