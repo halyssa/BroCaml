@@ -30,6 +30,7 @@ CREATE TABLE Ratings (
     rating INTEGER CHECK(rating BETWEEN 1 AND 5),
     comment TEXT,
     date TEXT NOT NULL,
+    time TEXT,
     FOREIGN KEY (username) REFERENCES Users(username),
     UNIQUE (eatery_name, food_item, username, date)
 );
@@ -40,6 +41,7 @@ CREATE TABLE PersonalRatings (
     food_item TEXT NOT NULL,
     rating INTEGER CHECK(rating BETWEEN 1 AND 5),
     date TEXT NOT NULL,
+    time TEXT,
     UNIQUE (eatery_name, food_item, date)
 );
 

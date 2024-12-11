@@ -44,3 +44,9 @@ let run_contains food eateries =
   | false ->
       Printf.printf "Unfortunately, %s is not served in the eateries today. "
         food
+
+let eatery_exists name eateries =
+  List.exists
+    (fun eatery ->
+      String.lowercase_ascii eatery.name = String.lowercase_ascii name)
+    eateries

@@ -56,14 +56,14 @@ let rec prompt_user_rate public_db personal_db eateries =
         else
           let%lwt () =
             rate_food public_db personal_db food eatery rating is_guest
-              current_user
+              current_user eateries
           in
           prompt_user_rate public_db personal_db eateries
       with Failure _ ->
         print_endline "Invalid rating. Please enter a number between 1 and 5.";
         prompt_user_rate public_db personal_db eateries)
   | [ "2"; food; eatery ] ->
-      let%lwt () = view_food_rating public_db food eatery in
+      let%lwt () = view_food_rating public_db food eatery eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
       show_personal_ratings personal_db;
