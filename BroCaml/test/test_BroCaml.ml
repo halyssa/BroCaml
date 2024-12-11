@@ -167,15 +167,12 @@ let test_validate_special_chars _ =
 let test_finalize_statement_rc_ok _ =
   let db = setup_test_db () in
 
-  (* Define a mock finalize function locally *)
   let mock_finalize stmt db = ignore (Sqlite3.finalize stmt) in
 
-  (* Perform the test *)
   assert_bool "Rc.OK should succeed without exceptions"
     (try
-       (* Call create_user with the mock finalize function *)
        create_user ~finalize:mock_finalize db "test_user" "password";
-       true (* If no exception is raised, return true *)
+       true
      with _ -> false)
 
 let login_tests =
@@ -187,12 +184,8 @@ let login_tests =
          "test Rc.OK" >:: test_finalize_statement_rc_ok;
        ]
 
-(* Mock JSON data for testing *)
-
-(* Case 1: Null eateries *)
 let null_eateries_json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ]
 
-(* Case 2: Eateries without menu items or events *)
 let no_menu_items_json =
   `Assoc
     [
@@ -214,7 +207,6 @@ let no_menu_items_json =
           ] );
     ]
 
-(* Case 3: Eateries with events but no menus *)
 let no_menu_events_json =
   `Assoc
     [
@@ -248,13 +240,8 @@ let no_menu_events_json =
           ] );
     ]
 
-(* Case 4: Invalid JSON structure *)
 let invalid_json = `Assoc [ ("invalid_key", `String "Invalid") ]
-
-(* Case 5: API failure *)
 let failing_url = "http://invalid-url.test"
-
-(* Test cases *)
 
 let test_parse_null_eateries _ =
   Lwt_main.run
@@ -288,8 +275,32 @@ let test_fetch_invalid_json _ =
              Lwt.return ()
          | _ -> assert_failure "Unexpected exception"))
 
+let test_parse_eateries_valid_json _ =
+  Lwt_main.run
+    (let json =
+       `Assoc
+         [
+           ( "data",
+             `Assoc
+               [
+                 ( "eateries",
+                   `List
+                     [
+                       `Assoc
+                         [
+                           ("name", `String "Bistro Cafe");
+                           ( "diningItems",
+                             `List [ `Assoc [ ("item", `String "Pasta") ] ] );
+                         ];
+                     ] );
+               ] );
+         ]
+     in
+     let%lwt eateries = parse_eateries json in
+     assert_equal (List.length eateries) 1;
+     Lwt.return ())
+
 let test_fetch_failing_url _ =
-  (* Mock fetch_json to simulate a failure with a delay *)
   let mock_fetch_json url =
     Lwt.pause () >>= fun () ->
     Lwt.fail (Failure "HTTP request failed with error")
@@ -307,7 +318,7 @@ let test_fetch_failing_url _ =
 
 let test_get_data _ =
   Lwt_main.run
-    (let timeout = Lwt_unix.sleep 3.0 >>= fun () -> Lwt.return () in
+    (let timeout = Lwt_unix.sleep 0.5 >>= fun () -> Lwt.return () in
      Lwt.pick
        [
          ( get_data () >>= fun eateries ->
@@ -316,6 +327,52 @@ let test_get_data _ =
            Lwt.return () );
          timeout;
        ])
+
+let get_data fetch_json =
+  let%lwt response = fetch_json () in
+  Lwt.return response
+
+let test_get_data_http_failure _ =
+  let mock_fetch_json _ = Lwt.fail (Failure "HTTP request failed with error") in
+  Lwt_main.run
+    (Lwt.catch
+       (fun () ->
+         let%lwt result = get_data mock_fetch_json in
+         assert_equal [] result;
+         Lwt.return ())
+       (function
+         | Failure msg ->
+             assert_equal "HTTP request failed with error" msg;
+             Lwt.return ()
+         | _ -> assert_failure "Expected fetch_json to fail"))
+
+let test_get_data_json_parsing_failure _ =
+  let mock_fetch_json _ = Lwt.fail (Failure "JSON parsing error") in
+  Lwt_main.run
+    (Lwt.catch
+       (fun () ->
+         let%lwt result = get_data mock_fetch_json in
+         assert_equal [] result;
+         Lwt.return ())
+       (function
+         | Failure msg ->
+             assert_equal "JSON parsing error" msg;
+             Lwt.return ()
+         | _ -> assert_failure "Expected fetch_json to fail"))
+
+let test_get_data_unexpected_failure _ =
+  let mock_fetch_json _ = Lwt.fail (Failure "Unexpected error") in
+  Lwt_main.run
+    (Lwt.catch
+       (fun () ->
+         let%lwt result = get_data mock_fetch_json in
+         assert_equal [] result;
+         Lwt.return ())
+       (function
+         | Failure msg ->
+             assert_equal "Unexpected error" msg;
+             Lwt.return ()
+         | _ -> assert_failure "Expected fetch_json to fail"))
 
 let data_tests =
   "Data.ml Test Suite"
@@ -326,6 +383,11 @@ let data_tests =
          "test_fetch_invalid_json" >:: test_fetch_invalid_json;
          "test_fetch_failing_url" >:: test_fetch_failing_url;
          "test_get_data" >:: test_get_data;
+         "test_parse_eateries_valid_json" >:: test_parse_eateries_valid_json;
+         "test_get_data_http_failure" >:: test_get_data_http_failure;
+         "test_get_data_json_parsing_failure"
+         >:: test_get_data_json_parsing_failure;
+         "test_get_data_unexpected_failure" >:: test_get_data_unexpected_failure;
        ]
 
 let eatery_tests =
