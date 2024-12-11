@@ -2,7 +2,6 @@ open Sqlite3
 
 exception BindingError of string
 
-(* Check if a user exists in the database *)
 let user_exists db username =
   let query = "SELECT COUNT(*) FROM Users WHERE username = ?;" in
   let stmt = prepare db query in
@@ -16,7 +15,6 @@ let user_exists db username =
       finalize stmt |> ignore;
       raise (BindingError "Failed to check if user exists.")
 
-(* Validate a user's credentials (username and password) *)
 let validate_user db username password =
   Lwt.return
     (let query = "SELECT password_hash FROM Users WHERE username = ?;" in
@@ -34,6 +32,8 @@ let validate_user db username password =
          finalize stmt |> ignore;
          raise (BindingError "Database error during user validation."))
 
+(** [finalize_statement] is a function to clean up SQL statement after
+    execution. *)
 let finalize_statement ~finalize stmt db =
   match finalize stmt db with
   | Sqlite3.Rc.OK -> ()
@@ -44,7 +44,6 @@ let finalize_statement ~finalize stmt db =
       failwith
         ("Unexpected result during finalize: " ^ Sqlite3.Rc.to_string other)
 
-(* Create a new user in the database *)
 let create_user ~finalize db username password =
   let query = "INSERT INTO Users (username, password_hash) VALUES (?, ?);" in
   let stmt = Sqlite3.prepare db query in
@@ -60,7 +59,6 @@ let create_user ~finalize db username password =
     finalize stmt db;
     raise exn
 
-(* Fetch and print all users *)
 let fetch_users ~finalize db =
   let query = "SELECT id, username FROM Users;" in
   let stmt = prepare db query in

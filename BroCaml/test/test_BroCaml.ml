@@ -7,6 +7,7 @@ open BroCaml.User
 open BroCaml.Data
 open BroCaml.Login
 open BroCaml.Rating
+open Sqlite3
 
 let eatery1 = create_eatery "Bistro Cafe" [ "Pasta"; "Salad"; "Soup" ]
 let eatery2 = create_eatery "Deli Delight" [ "Sandwich"; "Soup"; "Juice" ]
@@ -165,16 +166,40 @@ let test_validate_special_chars _ =
   let result = Lwt_main.run (validate_user db "user!@#$" "wrong_hash") in
   assert_bool "Validation should fail with wrong password" (not result)
 
-let test_finalize_statement_rc_ok _ =
+(**[finalize_wrapper stmt _db] is a helper function that converts Finalize.stmt
+   to the type Finalize.db *)
+let finalize_wrapper stmt _db =
+  match Sqlite3.finalize stmt with
+  | Sqlite3.Rc.OK -> ()
+  | Sqlite3.Rc.CONSTRAINT ->
+      failwith "Error creating user: UNIQUE constraint failed: Users.username"
+  | rc -> failwith ("Failed to finalize statement: " ^ Sqlite3.Rc.to_string rc)
+
+let test_create_user _ =
   let db = setup_test_db () in
 
-  let mock_finalize stmt db = ignore (Sqlite3.finalize stmt) in
+  (* Test creating a new user *)
+  create_user ~finalize:finalize_wrapper db "new_user" "password123";
+  assert_bool "User should exist after creation" (user_exists db "new_user");
 
-  assert_bool "Rc.OK should succeed without exceptions"
-    (try
-       create_user ~finalize:mock_finalize db "test_user" "password";
-       true
-     with _ -> false)
+  (* Test creating a user with an existing username *)
+  assert_raises
+    (Failure "Error creating user: UNIQUE constraint failed: Users.username")
+    (fun () ->
+      create_user ~finalize:finalize_wrapper db "new_user" "password123");
+
+  (* Ensure no other users were added *)
+  let count_query = "SELECT COUNT(*) FROM Users;" in
+  let stmt = Sqlite3.prepare db count_query in
+  let count =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+        Sqlite3.column stmt 0 |> Sqlite3.Data.to_int |> Option.get
+    | _ -> 0
+  in
+  Sqlite3.finalize stmt |> ignore;
+
+  assert_equal 1 count
 
 let login_tests =
   "login tests"
@@ -182,7 +207,7 @@ let login_tests =
          "test_user_exists" >:: test_user_exists;
          "test_validate_user" >:: test_validate_user;
          "test_validate_special_chars" >:: test_validate_special_chars;
-         "test Rc.OK" >:: test_finalize_statement_rc_ok;
+         "test_create_user" >:: test_create_user;
        ]
 
 let null_eateries_json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ]
@@ -397,7 +422,8 @@ let test_rate_food_valid =
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   let result =
-    Lwt_main.run (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
   in
   assert_equal () result
 
@@ -415,25 +441,119 @@ let test_rate_food_invalid_rating =
 let test_view_food_rating_no_ratings =
   "View food rating when no ratings exist" >:: fun _ ->
   let db = create_in_memory_db () in
-  let result = Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar" eateries) in
+  let result =
+    Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar" eateries)
+  in
   assert_equal () result
 
-  (* let test_show_personal_ratings_empty_table =
-    "Show personal ratings with\n   empty table" >:: fun _ ->
-    let db = create_in_memory_db () in
-    let result = Lwt_main.run (show_personal_ratings db) in
-    (* Here, you don't expect any side effects, you just ensure that Lwt runs correctly *)
-    assert_equal () result
-  
-  
-
-let test_show_public_ratings_for_food =
-  "Show public ratings for food item" >:: fun _ ->
+let test_rate_food_as_guest =
+  "Rate food as guest" >:: fun _ ->
   let db = create_in_memory_db () in
-  let result = Lwt_main.run (show_public_ratings db "Pizza") in
-  (* Verify that public ratings are correctly displayed from the public
-     database *)
-  assert_equal () result *)
+  let is_guest = ref true in
+  let current_user = ref None in
+  let result =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+  in
+  assert_equal () result
+
+let test_rate_food_invalid_eatery =
+  "Rate food at invalid eatery" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result =
+    Lwt_main.run
+      (rate_food db db "Pizza" "NonExistent Eatery" 4 is_guest current_user
+         eateries)
+  in
+  assert_equal () result
+
+let test_rate_food_non_existent_food =
+  "Rate non-existent food item" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result =
+    Lwt_main.run
+      (rate_food db db "NonExistent Food" "Grill House" 4 is_guest current_user
+         eateries)
+  in
+  assert_equal () result
+
+let test_rate_food_no_user_logged_in =
+  "Rate food with no user logged in" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref None in
+  let result =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+  in
+  assert_equal () result
+
+let test_rate_food_update_existing_rating =
+  "Update existing food rating" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result_first =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+  in
+  let result_second =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 5 is_guest current_user eateries)
+  in
+  assert_equal () result_first;
+  assert_equal () result_second
+
+let test_rate_food_invalid_rating_value =
+  "Rate food with invalid rating value (out of range)" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  let result =
+    Lwt_main.run
+      (rate_food db db "Pizza" "Grill House" 6 is_guest current_user eateries)
+  in
+  assert_equal () result
+
+let test_view_food_rating_with_comments =
+  "View food rating with comments" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  (* Insert a rating with a comment *)
+  Lwt_main.run
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+  (* Simulate a comment *)
+  Lwt_main.run
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+  let result =
+    Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
+  in
+  assert_equal () result
+
+let test_view_food_rating_empty_db =
+  "View food rating when database is empty" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let result =
+    Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
+  in
+  assert_equal () result
+
+let test_view_food_rating_no_comments =
+  "View food rating with no comments" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let is_guest = ref false in
+  let current_user = ref (Some "john_doe") in
+  Lwt_main.run
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+  let result =
+    Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
+  in
+  assert_equal () result
 
 let ratings_tests =
   "Food Rating Tests"
@@ -441,6 +561,14 @@ let ratings_tests =
          test_rate_food_valid;
          test_rate_food_invalid_rating;
          test_view_food_rating_no_ratings;
+         test_rate_food_as_guest;
+         test_rate_food_invalid_eatery;
+         test_rate_food_non_existent_food;
+         test_rate_food_no_user_logged_in;
+         test_rate_food_update_existing_rating;
+         test_rate_food_invalid_rating_value;
+         test_view_food_rating_with_comments;
+         test_view_food_rating_no_comments;
          (* test_show_personal_ratings_empty_table;
             test_show_public_ratings_for_food; *)
        ]
