@@ -28,13 +28,18 @@ CREATE TABLE Ratings (
     food_item TEXT NOT NULL,
     username TEXT NOT NULL,
     rating INTEGER CHECK(rating BETWEEN 1 AND 5),
-    FOREIGN KEY (username) REFERENCES Users(username)
+    comment TEXT,
+    date TEXT NOT NULL,
+    FOREIGN KEY (username) REFERENCES Users(username),
+    UNIQUE (eatery_name, food_item, username, date)
 );
 
 CREATE TABLE PersonalRatings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     eatery_name TEXT NOT NULL,
     food_item TEXT NOT NULL,
-    rating INTEGER CHECK(rating BETWEEN 1 AND 5)
+    rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+    date TEXT NOT NULL,
+    UNIQUE (eatery_name, food_item, date)
 );
 
