@@ -166,12 +166,48 @@ let test_validate_special_chars _ =
   let result = Lwt_main.run (validate_user db "user!@#$" "wrong_hash") in
   assert_bool "Validation should fail with wrong password" (not result)
 
+(**[finalize_wrapper stmt _db] is a helper function that converts Finalize.stmt
+   to the type Finalize.db *)
+let finalize_wrapper stmt _db =
+  match Sqlite3.finalize stmt with
+  | Sqlite3.Rc.OK -> ()
+  | Sqlite3.Rc.CONSTRAINT ->
+      failwith "Error creating user: UNIQUE constraint failed: Users.username"
+  | rc -> failwith ("Failed to finalize statement: " ^ Sqlite3.Rc.to_string rc)
+
+let test_create_user _ =
+  let db = setup_test_db () in
+
+  (* Test creating a new user *)
+  create_user ~finalize:finalize_wrapper db "new_user" "password123";
+  assert_bool "User should exist after creation" (user_exists db "new_user");
+
+  (* Test creating a user with an existing username *)
+  assert_raises
+    (Failure "Error creating user: UNIQUE constraint failed: Users.username")
+    (fun () ->
+      create_user ~finalize:finalize_wrapper db "new_user" "password123");
+
+  (* Ensure no other users were added *)
+  let count_query = "SELECT COUNT(*) FROM Users;" in
+  let stmt = Sqlite3.prepare db count_query in
+  let count =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+        Sqlite3.column stmt 0 |> Sqlite3.Data.to_int |> Option.get
+    | _ -> 0
+  in
+  Sqlite3.finalize stmt |> ignore;
+
+  assert_equal 1 count
+
 let login_tests =
   "login tests"
   >::: [
          "test_user_exists" >:: test_user_exists;
          "test_validate_user" >:: test_validate_user;
          "test_validate_special_chars" >:: test_validate_special_chars;
+         "test_create_user" >:: test_create_user;
        ]
 
 let null_eateries_json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ]
