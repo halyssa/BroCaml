@@ -397,11 +397,9 @@ let test_rate_food_valid =
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   let result =
-    Lwt_main.run (rate_food db db "Pizza" "Grill House" 4 is_guest current_user)
+    Lwt_main.run (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
   in
-  (* Assert that no error is raised or handled (you can adjust this based on
-     what you expect) *)
-  assert_equal () result (* Use specific assertions for expected behavior *)
+  assert_equal () result
 
 let test_rate_food_invalid_rating =
   "Rate food with invalid rating value" >:: fun _ ->
@@ -410,29 +408,32 @@ let test_rate_food_invalid_rating =
   let current_user = ref (Some "john_doe") in
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" (-1) is_guest current_user)
+      (rate_food db db "Pizza" "Grill House" (-1) is_guest current_user eateries)
   in
-  (* Assert the correct handling of an invalid rating, for example, a printed
-     error *)
-  assert_equal ()
-    result (* Adjust for expected behavior when the rating is invalid *)
+  assert_equal () result
 
 let test_view_food_rating_no_ratings =
   "View food rating when no ratings exist" >:: fun _ ->
   let db = create_in_memory_db () in
-  let result = Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar") in
-  (* Check that the correct message is shown, e.g., no ratings found *)
+  let result = Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar" eateries) in
   assert_equal () result
 
-(* let test_show_personal_ratings_empty_table = "Show personal ratings with
-   empty table" >:: fun _ -> let db = create_in_memory_db () in let result =
-   Lwt_main.run (show_personal_ratings db) in (* Check that no personal ratings
-   are displayed if the table is empty *) assert_equal () result
+  (* let test_show_personal_ratings_empty_table =
+    "Show personal ratings with\n   empty table" >:: fun _ ->
+    let db = create_in_memory_db () in
+    let result = Lwt_main.run (show_personal_ratings db) in
+    (* Here, you don't expect any side effects, you just ensure that Lwt runs correctly *)
+    assert_equal () result
+  
+  
 
-   let test_show_public_ratings_for_food = "Show public ratings for food item"
-   >:: fun _ -> let db = create_in_memory_db () in let result = Lwt_main.run
-   (show_public_ratings db "Pizza") in (* Verify that public ratings are
-   correctly displayed from the public database *) assert_equal () result *)
+let test_show_public_ratings_for_food =
+  "Show public ratings for food item" >:: fun _ ->
+  let db = create_in_memory_db () in
+  let result = Lwt_main.run (show_public_ratings db "Pizza") in
+  (* Verify that public ratings are correctly displayed from the public
+     database *)
+  assert_equal () result *)
 
 let ratings_tests =
   "Food Rating Tests"
