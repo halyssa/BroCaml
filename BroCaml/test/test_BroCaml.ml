@@ -164,12 +164,27 @@ let test_validate_special_chars _ =
   let result = Lwt_main.run (validate_user db "user!@#$" "wrong_hash") in
   assert_bool "Validation should fail with wrong password" (not result)
 
+let test_finalize_statement_rc_ok _ =
+  let db = setup_test_db () in
+
+  (* Define a mock finalize function locally *)
+  let mock_finalize stmt db = ignore (Sqlite3.finalize stmt) in
+
+  (* Perform the test *)
+  assert_bool "Rc.OK should succeed without exceptions"
+    (try
+       (* Call create_user with the mock finalize function *)
+       create_user ~finalize:mock_finalize db "test_user" "password";
+       true (* If no exception is raised, return true *)
+     with _ -> false)
+
 let login_tests =
   "login tests"
   >::: [
          "test_user_exists" >:: test_user_exists;
          "test_validate_user" >:: test_validate_user;
          "test_validate_special_chars" >:: test_validate_special_chars;
+         "test Rc.OK" >:: test_finalize_statement_rc_ok;
        ]
 
 (* Mock JSON data for testing *)
