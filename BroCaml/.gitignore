@@ -3,3 +3,5 @@ _opam/
 gitlog.txt
 eateries.json
 .DS_Store
+_coverage/
+

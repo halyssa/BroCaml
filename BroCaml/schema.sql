@@ -21,3 +21,25 @@ CREATE TABLE Reviews (
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (eatery_id) REFERENCES Eateries(id)
 );
+
+CREATE TABLE Ratings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    eatery_name TEXT NOT NULL,
+    food_item TEXT NOT NULL,
+    username TEXT NOT NULL,
+    rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+    comment TEXT,
+    date TEXT NOT NULL,
+    FOREIGN KEY (username) REFERENCES Users(username),
+    UNIQUE (eatery_name, food_item, username, date)
+);
+
+CREATE TABLE PersonalRatings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    eatery_name TEXT NOT NULL,
+    food_item TEXT NOT NULL,
+    rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+    date TEXT NOT NULL,
+    UNIQUE (eatery_name, food_item, date)
+);
+

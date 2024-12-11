@@ -2,6 +2,12 @@
 type eatery
 (** [search_food food] is a list of eateries that is serving [food] for that day*)
 
+val get_name : eatery -> string
+(** [get_name] returns the name of an eatery *)
+
+val get_menu : eatery -> string list
+(** [get_menu] returns the menu of an eatery *)
+
 val create_eatery : string -> string list -> eatery
 (** [create_eatery] creates an eatery *)
 
@@ -15,9 +21,8 @@ val search_food : string -> eatery list -> string list
 (** [search_food] returns a list of eateries that contains the desired food and
     returns and empty list if nothing is found. *)
 
-(* val rate_food : string -> int -> string list *)
+val run_contains : string -> eatery list -> unit
+(** [run_contains] runs the [contains] function. *)
 
-(* val get_data : unit -> eatery list Lwt.t *)
-
-(* val parse_eateries : Yojson.Safe.t -> { name : string; menu : string list
-   } *)
+val run_search_food : string -> eatery list -> unit
+(** [run_serach_food] runs the [search_food] function]. *)
