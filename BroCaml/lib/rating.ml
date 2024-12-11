@@ -213,35 +213,55 @@ let view_food_rating public_db food eatery eateries =
     (* Finalize the statement to release resources *)
     Lwt.return (Sqlite3.finalize stmt |> ignore)
 
-let show_personal_ratings db =
-  let query =
-    "SELECT eatery_name, food_item, rating, date, time FROM PersonalRatings;"
-  in
-  let stmt = prepare db query in
-  try
-    print_endline "Displaying all ratings in PersonalRatings:";
-    print_endline "------------------------------------------";
-    while step stmt = Rc.ROW do
-      let eatery_name =
-        column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      let food_item =
-        column stmt 1 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      let rating = column stmt 2 |> Data.to_int |> Option.value ~default:0 in
-      let date =
-        column stmt 3 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      let time =
-        column stmt 4 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      Printf.printf "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
-        eatery_name food_item rating date time
-    done;
-    finalize stmt |> ignore
-  with exn ->
-    finalize stmt |> ignore;
-    raise exn
+let show_personal_ratings db is_guest =
+  if !is_guest then
+    Lwt.return
+      (print_endline
+         "Error: Guests do not have personal ratings. Please log in or create \
+          an account to see your past ratings.")
+  else
+    let query =
+      "SELECT eatery_name, food_item, rating, date, time FROM PersonalRatings;"
+    in
+    let stmt = Sqlite3.prepare db query in
+    Lwt.finalize
+      (fun () ->
+        print_endline "Displaying all ratings in PersonalRatings:";
+        print_endline "------------------------------------------";
+        let rec fetch_rows () =
+          match Sqlite3.step stmt with
+          | Sqlite3.Rc.ROW ->
+              let eatery_name =
+                Sqlite3.column stmt 0 |> Sqlite3.Data.to_string
+                |> Option.value ~default:"NULL"
+              in
+              let food_item =
+                Sqlite3.column stmt 1 |> Sqlite3.Data.to_string
+                |> Option.value ~default:"NULL"
+              in
+              let rating =
+                Sqlite3.column stmt 2 |> Sqlite3.Data.to_int
+                |> Option.value ~default:0
+              in
+              let date =
+                Sqlite3.column stmt 3 |> Sqlite3.Data.to_string
+                |> Option.value ~default:"NULL"
+              in
+              let time =
+                Sqlite3.column stmt 4 |> Sqlite3.Data.to_string
+                |> Option.value ~default:"NULL"
+              in
+              Printf.printf
+                "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
+                eatery_name food_item rating date time;
+              fetch_rows () (* Recursive call to fetch next row *)
+          | Sqlite3.Rc.DONE -> Lwt.return_unit (* End of rows *)
+          | _ ->
+              print_endline "Error while processing personal ratings.";
+              Lwt.return_unit
+        in
+        fetch_rows ())
+      (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
 let show_public_ratings db food =
   let query =
@@ -276,3 +296,119 @@ let show_public_ratings db food =
   with exn ->
     Sqlite3.finalize stmt |> ignore;
     raise exn
+
+let rec print_results stmt =
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let eatery_name =
+        Sqlite3.column stmt 1 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let food_item =
+        Sqlite3.column stmt 2 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let rating =
+        Sqlite3.column stmt 3 |> Sqlite3.Data.to_int |> Option.value ~default:0
+      in
+      let date =
+        Sqlite3.column stmt 4 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let time =
+        Sqlite3.column stmt 5 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      Printf.printf "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
+        eatery_name food_item rating date time;
+      print_results stmt (* Recur for the next row *)
+  | Sqlite3.Rc.DONE -> () (* End of rows, stop recursion *)
+  | _ -> print_endline "Error processing query results."
+
+(* sorting by rating *)
+let sort_by_highest_rating db table =
+  let personal_db = connect_db_checked "personal_ratings.db" in
+  Printf.printf "Using database: %s\n"
+    (if db == personal_db then "personal_db" else "public_db");
+  let query = "SELECT * FROM Ratings ORDER BY rating DESC;" in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+let sort_by_lowest_rating db table =
+  let query = Printf.sprintf "SELECT * FROM %s ORDER BY rating ASC;" table in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+(* sort abc *)
+let sort_by_eatery_alphabetical db table =
+  let query =
+    Printf.sprintf "SELECT * FROM %s ORDER BY eatery_name ASC;" table
+  in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+let sort_by_eatery_reverse_alphabetical db table =
+  let query =
+    Printf.sprintf "SELECT * FROM %s ORDER BY eatery_name DESC;" table
+  in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+let sort_by_food_alphabetical db table =
+  let query = Printf.sprintf "SELECT * FROM %s ORDER BY food_item ASC;" table in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+let sort_by_food_reverse_alphabetical db table =
+  let query =
+    Printf.sprintf "SELECT * FROM %s ORDER BY food_item DESC;" table
+  in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+(* chronological *)
+let sort_by_date_asc db table =
+  let query =
+    Printf.sprintf "SELECT * FROM %s ORDER BY date ASC, time ASC;" table
+  in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
+
+let sort_by_date_desc db table =
+  let query =
+    Printf.sprintf "SELECT * FROM %s ORDER BY date DESC, time DESC;" table
+  in
+  let stmt = Sqlite3.prepare db query in
+  Lwt.finalize
+    (fun () ->
+      print_results stmt;
+      Lwt.return ())
+    (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))

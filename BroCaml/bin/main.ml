@@ -35,6 +35,101 @@ let rec prompt_user_find public_db personal_db eateries =
       print_endline "That action does not exist or is incorrectly formatted.";
       prompt_user_find public_db personal_db eateries
 
+let rec prompt_user_sort_3 db eateries =
+  print_endline
+    "\nSelect a sorting option: (default is ascending chronological)";
+  print_endline "1. Sort by highest rating";
+  print_endline "2. Sort by lowest rating";
+  print_endline "3. Sort eateries alphabetically (A-Z)";
+  print_endline "4. Sort eateries reverse alphabetically (Z-A)";
+  print_endline "5. Sort food items alphabetically (A-Z)";
+  print_endline "6. Sort food items reverse alphabetically (Z-A)";
+  print_endline "7. Sort chronologically (oldest first)";
+  print_endline "8. Sort reverse chronologically (newest first)";
+  print_endline "9. Go back";
+
+  let choice = read_line () in
+  let table = "PersonalRatings" in
+  match choice with
+  | "" ->
+      (* Default option: ascending chronological order *)
+      let%lwt () = show_personal_ratings db is_guest in
+      prompt_user_sort_3 db eateries
+  | "1" ->
+      let%lwt () = sort_by_highest_rating db table in
+      prompt_user_sort_3 db eateries
+  | "2" ->
+      let%lwt () = sort_by_lowest_rating db table in
+      prompt_user_sort_3 db eateries
+  | "3" ->
+      let%lwt () = sort_by_eatery_alphabetical db table in
+      prompt_user_sort_3 db eateries
+  | "4" ->
+      let%lwt () = sort_by_eatery_reverse_alphabetical db table in
+      prompt_user_sort_3 db eateries
+  | "5" ->
+      let%lwt () = sort_by_food_alphabetical db table in
+      prompt_user_sort_3 db eateries
+  | "6" ->
+      let%lwt () = sort_by_food_reverse_alphabetical db table in
+      prompt_user_sort_3 db eateries
+  | "7" ->
+      let%lwt () = sort_by_date_asc db table in
+      prompt_user_sort_3 db eateries
+  | "8" ->
+      let%lwt () = sort_by_date_desc db table in
+      prompt_user_sort_3 db eateries
+  | "9" -> Lwt.return () (* Exit sorting menu *)
+  | _ ->
+      print_endline "Invalid choice. Please try again.";
+      prompt_user_sort_3 db eateries
+
+let rec prompt_user_sort_4 db eateries =
+  print_endline "\nSelect a sorting option: ";
+  print_endline "1. Sort by highest rating";
+  print_endline "2. Sort by lowest rating";
+  print_endline "3. Sort eateries alphabetically (A-Z)";
+  print_endline "4. Sort eateries reverse alphabetically (Z-A)";
+  print_endline "5. Sort chronologically (oldest first)";
+  print_endline "6. Sort reverse chronologically (newest first)";
+  print_endline "7. Go back";
+
+  let choice = read_line () in
+  let table = "Ratings" in
+  match choice with
+  | "" ->
+      let%lwt () = sort_by_date_asc db table in
+      prompt_user_sort_4 db eateries
+  | "1" ->
+      let%lwt () = sort_by_highest_rating db table in
+      prompt_user_sort_4 db eateries
+  | "2" ->
+      let%lwt () = sort_by_lowest_rating db table in
+      prompt_user_sort_4 db eateries
+  | "3" ->
+      let%lwt () = sort_by_eatery_alphabetical db table in
+      prompt_user_sort_4 db eateries
+  | "4" ->
+      let%lwt () = sort_by_eatery_reverse_alphabetical db table in
+      prompt_user_sort_4 db eateries
+  | "5" ->
+      let%lwt () = sort_by_date_asc db table in
+      prompt_user_sort_4 db eateries
+  | "6" ->
+      let%lwt () = sort_by_date_desc db table in
+      prompt_user_sort_4 db eateries
+  | "7" -> Lwt.return () (* Exit sorting menu *)
+  | _ ->
+      print_endline "Invalid choice. Please try again.";
+      prompt_user_sort_4 db eateries
+
+let debug_db db description =
+  Printf.printf "Debugging DB (%s): %s\n" description
+    (if db == connect_db_checked "personal_ratings.db" then "personal_db"
+     else if db == connect_db_checked "findmyfood.db" then "public_db"
+     else "unknown");
+  ()
+
 let rec prompt_user_rate public_db personal_db eateries =
   print_endline "\n Which number best fits your desired action? ";
   print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza Okenshields 5)";
@@ -66,10 +161,14 @@ let rec prompt_user_rate public_db personal_db eateries =
       let%lwt () = view_food_rating public_db food eatery eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
-      show_personal_ratings personal_db;
+      debug_db personal_db "Before prompt_user_sort_3";
+      (* print_endline "Querying PersonalRatings from personal_db..."; *)
+      let%lwt () = prompt_user_sort_3 personal_db eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "4"; food ] ->
-      show_public_ratings public_db food;
+      print_endline "Querying Ratings from public_db...";
+
+      let%lwt () = prompt_user_sort_4 public_db food in
       prompt_user_rate public_db personal_db eateries
   | [ "5" ] -> Lwt.return (quit_program ())
   | _ ->
@@ -151,6 +250,22 @@ let rec login_or_create_account db =
       print_endline "Invalid choice. Please try again.\n";
       login_or_create_account db
 
+let debug_list_tables db db_name =
+  let query = "SELECT name FROM sqlite_master WHERE type='table';" in
+  let stmt = Sqlite3.prepare db query in
+  Printf.printf "Listing tables in %s:\n" db_name;
+  let rec fetch_tables () =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+        let table_name = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+        Printf.printf "  - %s\n" (Option.value ~default:"UNKNOWN" table_name);
+        fetch_tables ()
+    | Sqlite3.Rc.DONE -> ()
+    | _ -> print_endline "Error fetching tables."
+  in
+  fetch_tables ();
+  Sqlite3.finalize stmt |> ignore
+
 (* main *)
 let () =
   let public_db_file = "findmyfood.db" in
@@ -158,6 +273,9 @@ let () =
 
   let public_db = connect_db_checked public_db_file in
   let personal_db = connect_db_checked personal_db_file in
+
+  (* debug_list_tables personal_db "personal_db"; debug_list_tables public_db
+     "public_db"; *)
   Lwt_main.run
     (let%lwt () = login_or_create_account public_db in
      user_entered public_db personal_db);
