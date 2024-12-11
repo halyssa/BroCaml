@@ -166,11 +166,11 @@ let test_validate_special_chars _ =
   let result = Lwt_main.run (validate_user db "user!@#$" "wrong_hash") in
   assert_bool "Validation should fail with wrong password" (not result)
 
-(**[finalize_wrapper stmt _db] is a helper function that converts Finalize.stmt
-   to the type Finalize.db *)
+(** [finalize_wrapper stmt _db] is a helper function that converts Finalize.stmt
+    to the type Finalize.db *)
 let finalize_wrapper stmt _db =
   match Sqlite3.finalize stmt with
-  | Sqlite3.Rc.OK -> ()
+  | Sqlite3.Rc.OK -> () (* This ensures no value is returned *)
   | Sqlite3.Rc.CONSTRAINT ->
       failwith "Error creating user: UNIQUE constraint failed: Users.username"
   | rc -> failwith ("Failed to finalize statement: " ^ Sqlite3.Rc.to_string rc)

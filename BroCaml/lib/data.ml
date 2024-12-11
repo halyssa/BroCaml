@@ -156,14 +156,6 @@ let get_data () : User.eatery list Lwt.t =
     let%lwt json = fetch_json url in
     let%lwt eateries = parse_eateries json in
     Lwt.return eateries
-  with
-  | Failure msg when msg = "HTTP request failed with error" ->
-      print_endline "Error: Could not fetch data from the dining API.";
-      Lwt.return []
-  | Failure msg when msg = "JSON parsing error" ->
-      print_endline
-        "Error: Failed to parse the JSON response from the dining API.";
-      Lwt.return []
-  | Failure msg ->
-      print_endline (Printf.sprintf "Unexpected error in get_data: %s" msg);
-      Lwt.return []
+  with Failure msg ->
+    print_endline (Printf.sprintf "Unexpected error in get_data: %s" msg);
+    Lwt.return []
