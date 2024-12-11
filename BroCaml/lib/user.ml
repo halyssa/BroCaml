@@ -3,6 +3,9 @@ type eatery = {
   menu : string list;
 }
 
+let get_name eatery = eatery.name
+let get_menu eatery = eatery.menu
+
 (* creates a new eatery *)
 let create_eatery name menu =
   if String.trim name = "" then

@@ -172,6 +172,147 @@ let login_tests =
          "test_validate_special_chars" >:: test_validate_special_chars;
        ]
 
+(* Mock JSON data for testing *)
+
+(* Case 1: Null eateries *)
+let null_eateries_json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ]
+
+(* Case 2: Eateries without menu items or events *)
+let no_menu_items_json =
+  `Assoc
+    [
+      ( "data",
+        `Assoc
+          [
+            ( "eateries",
+              `List
+                [
+                  `Assoc
+                    [
+                      ("name", `String "Test Eatery");
+                      ("diningItems", `Null);
+                      ("operatingHours", `Null);
+                      ( "diningCuisines",
+                        `List [ `Assoc [ ("name", `String "Italian") ] ] );
+                    ];
+                ] );
+          ] );
+    ]
+
+(* Case 3: Eateries with events but no menus *)
+let no_menu_events_json =
+  `Assoc
+    [
+      ( "data",
+        `Assoc
+          [
+            ( "eateries",
+              `List
+                [
+                  `Assoc
+                    [
+                      ("name", `String "Event Eatery");
+                      ( "operatingHours",
+                        `List
+                          [
+                            `Assoc
+                              [
+                                ( "events",
+                                  `List
+                                    [
+                                      `Assoc
+                                        [
+                                          ("menu", `Null);
+                                          ("otherField", `String "OtherData");
+                                        ];
+                                    ] );
+                              ];
+                          ] );
+                    ];
+                ] );
+          ] );
+    ]
+
+(* Case 4: Invalid JSON structure *)
+let invalid_json = `Assoc [ ("invalid_key", `String "Invalid") ]
+
+(* Case 5: API failure *)
+let failing_url = "http://invalid-url.test"
+
+(* Test cases *)
+
+let test_parse_null_eateries _ =
+  Lwt_main.run
+    ( parse_eateries null_eateries_json >|= fun eateries ->
+      assert_equal [] eateries )
+
+let test_parse_no_menu_items _ =
+  Lwt_main.run
+    ( parse_eateries no_menu_items_json >|= fun eateries ->
+      assert_equal [ "Test Eatery" ] (List.map (fun e -> get_name e) eateries);
+      assert_equal [ [ "Italian" ] ] (List.map (fun e -> get_menu e) eateries)
+    )
+
+let test_parse_no_menu_events _ =
+  Lwt_main.run
+    ( parse_eateries no_menu_events_json >|= fun eateries ->
+      assert_equal [ "Event Eatery" ] (List.map (fun e -> get_name e) eateries);
+      assert_equal
+        [ [ "No menu available" ] ]
+        (List.map (fun e -> get_menu e) eateries) )
+
+let test_fetch_invalid_json _ =
+  Lwt_main.run
+    (Lwt.catch
+       (fun () ->
+         Lwt.fail (Failure "JSON parsing error") >|= fun _ ->
+         assert_failure "Expected fetch_json to fail")
+       (function
+         | Failure msg ->
+             assert_equal "JSON parsing error" msg;
+             Lwt.return ()
+         | _ -> assert_failure "Unexpected exception"))
+
+let test_fetch_failing_url _ =
+  (* Mock fetch_json to simulate a failure with a delay *)
+  let mock_fetch_json url =
+    Lwt.pause () >>= fun () ->
+    Lwt.fail (Failure "HTTP request failed with error")
+  in
+  Lwt_main.run
+    (Lwt.catch
+       (fun () ->
+         mock_fetch_json "https://failing-url.com" >|= fun _ ->
+         assert_failure "Expected fetch_json to fail")
+       (function
+         | Failure msg ->
+             assert_equal "HTTP request failed with error" msg;
+             Lwt.return ()
+         | _ -> assert_failure "Unexpected exception"))
+
+let test_get_data _ =
+  Lwt_main.run
+    (let timeout = Lwt_unix.sleep 3.0 >>= fun () -> Lwt.return () in
+     Lwt.pick
+       [
+         ( get_data () >>= fun eateries ->
+           assert_bool "Eateries list should not be empty"
+             (List.length eateries > 0);
+           Lwt.return () );
+         timeout;
+       ])
+
+let data_tests =
+  "Data.ml Test Suite"
+  >::: [
+         "test_parse_null_eateries" >:: test_parse_null_eateries;
+         "test_parse_no_menu_items" >:: test_parse_no_menu_items;
+         "test_parse_no_menu_events" >:: test_parse_no_menu_events;
+         "test_fetch_invalid_json" >:: test_fetch_invalid_json;
+         "test_fetch_failing_url" >:: test_fetch_failing_url;
+         "test_get_data" >:: test_get_data;
+       ]
+
 let eatery_tests =
   "eatery test suite"
   >::: [
@@ -183,6 +324,7 @@ let eatery_tests =
          get_data_tests;
          login_tests;
          test_create_eatery_invalid;
+         data_tests;
        ]
 
 let _ = run_test_tt_main eatery_tests

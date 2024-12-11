@@ -121,6 +121,7 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
                                        []))
                           []
                    in
+                   (* Default to empty list if menu is empty *)
                    if List.length menu_from_events > 0 then menu_from_events
                    else if List.length dining_items > 0 then dining_items
                    else
@@ -135,7 +136,12 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
                                 |> Yojson.Safe.Util.member "name"
                                 |> Yojson.Safe.Util.to_string)
                  in
-                 User.create_eatery name menu_items)
+                 (* Ensure a non-empty list is passed to create_eatery *)
+                 let safe_menu =
+                   if List.length menu_items = 0 then [ "No menu available" ]
+                   else menu_items
+                 in
+                 User.create_eatery name safe_menu)
         in
         Lwt.return eateries
   with e ->
