@@ -246,7 +246,7 @@ let view_food_rating public_db food eatery =
 
 exception BindingError of string
 
-let show_ratings db =
+let show_personal_ratings db =
   let query = "SELECT * FROM PersonalRatings;" in
   let stmt = prepare db query in
   try
@@ -269,6 +269,36 @@ let show_ratings db =
     finalize stmt |> ignore
   with exn ->
     finalize stmt |> ignore;
+    raise exn
+
+let show_public_ratings db food =
+  let query =
+    "SELECT eatery_name, rating, date FROM Ratings WHERE food_item = ?;"
+  in
+  let stmt = Sqlite3.prepare db query in
+  try
+    Sqlite3.bind_text stmt 1 food |> ignore;
+    print_endline
+      ("Displaying all ratings for \"" ^ food ^ "\" in the public database:");
+    print_endline "------------------------------------------------------------";
+    while Sqlite3.step stmt = Sqlite3.Rc.ROW do
+      let eatery_name =
+        Sqlite3.column stmt 0 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let rating =
+        Sqlite3.column stmt 1 |> Sqlite3.Data.to_int |> Option.value ~default:0
+      in
+      let date =
+        Sqlite3.column stmt 2 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      Printf.printf "Eatery: %s | Rating: %d | Date: %s\n" eatery_name rating
+        date
+    done;
+    Sqlite3.finalize stmt |> ignore
+  with exn ->
+    Sqlite3.finalize stmt |> ignore;
     raise exn
 
 let rec prompt_user_find public_db personal_db eateries =
@@ -296,8 +326,10 @@ let rec prompt_user_rate public_db personal_db eateries =
   print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza Okenshields 5)";
   print_endline
     "2. View the rating of <food> at <eatery> (ex. 2 pizza Okenshields)";
+
   print_endline "3. View your personal ratings";
-  print_endline "4. Quit";
+  print_endline "4. View all ratings for <food> (ex. 4 pizza)";
+  print_endline "5. Quit";
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
   match parts with
@@ -317,9 +349,12 @@ let rec prompt_user_rate public_db personal_db eateries =
       let%lwt () = view_food_rating public_db food eatery in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
-      show_ratings personal_db;
+      show_personal_ratings personal_db;
       prompt_user_rate public_db personal_db eateries
-  | [ "4" ] -> Lwt.return (quit_program ())
+  | [ "4"; food ] ->
+      show_public_ratings public_db food;
+      prompt_user_rate public_db personal_db eateries
+  | [ "5" ] -> Lwt.return (quit_program ())
   | _ ->
       print_endline "That action does not exist or is incorrectly formatted.";
       prompt_user_rate public_db personal_db eateries
