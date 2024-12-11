@@ -7,13 +7,22 @@ open BroCaml.User
 open BroCaml.Data
 open BroCaml.Login
 
-(* Sample eateries for testing *)
 let eatery1 = create_eatery "Bistro Cafe" [ "Pasta"; "Salad"; "Soup" ]
 let eatery2 = create_eatery "Deli Delight" [ "Sandwich"; "Soup"; "Juice" ]
 let eatery3 = create_eatery "Gourmet Grill" [ "Burger"; "Fries"; "Salad" ]
 let eateries = [ eatery1; eatery2; eatery3 ]
 
-(* Test contains_helper *)
+let test_create_eatery_invalid =
+  "empty test"
+  >::: [
+         ( "empty eater name" >:: fun _ ->
+           assert_raises (Invalid_argument "Eatery name cannot be empty.")
+             (fun () -> create_eatery "" [ "Pizza"; "Burger" ]) );
+         ( "empty menu" >:: fun _ ->
+           assert_raises (Invalid_argument "Menu cannot be empty.") (fun () ->
+               create_eatery "Pizza Place" []) );
+       ]
+
 let contains_helper_test =
   "contains helper tests"
   >::: [
@@ -38,7 +47,6 @@ let contains_helper_test =
              (contains "Chicken & Waffles" [ eatery_special_chars ]) );
        ]
 
-(* Test contains function *)
 let contains_tests =
   "contains function tests"
   >::: [
@@ -53,7 +61,6 @@ let contains_tests =
              (not (contains "Pizza" eateries)) );
        ]
 
-(* Test search_food *)
 let search_test_helper food eateries expected =
   "" >:: fun _ ->
   let result = search_food food eateries in
@@ -67,7 +74,6 @@ let search_food_tests =
          search_test_helper "Pizza" eateries [];
        ]
 
-(* Test duplicate food in menu *)
 let eatery_duplicate_food = create_eatery "Duplicate" [ "Burger"; "Burger" ]
 
 let contains_duplicate_food_test =
@@ -107,7 +113,6 @@ let parse_eateries_tests =
          >:: test_parse_eateries_missing_eateries;
        ]
 
-(*testing for login*)
 let setup_test_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_table_query =
@@ -177,6 +182,7 @@ let eatery_tests =
          parse_eateries_tests;
          get_data_tests;
          login_tests;
+         test_create_eatery_invalid;
        ]
 
 let _ = run_test_tt_main eatery_tests
