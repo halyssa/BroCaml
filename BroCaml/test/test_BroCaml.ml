@@ -413,6 +413,7 @@ let test_get_data _ =
          timeout;
        ])
 
+(** [get_data] fetches data by calling the [fetch_json] function. *)
 let get_data fetch_json =
   let%lwt response = fetch_json () in
   Lwt.return response
