@@ -178,17 +178,14 @@ let finalize_wrapper stmt _db =
 let test_create_user _ =
   let db = setup_test_db () in
 
-  (* Test creating a new user *)
   create_user ~finalize:finalize_wrapper db "new_user" "password123";
   assert_bool "User should exist after creation" (user_exists db "new_user");
 
-  (* Test creating a user with an existing username *)
   assert_raises
     (Failure "Error creating user: UNIQUE constraint failed: Users.username")
     (fun () ->
       create_user ~finalize:finalize_wrapper db "new_user" "password123");
 
-  (* Ensure no other users were added *)
   let count_query = "SELECT COUNT(*) FROM Users;" in
   let stmt = Sqlite3.prepare db count_query in
   let count =
@@ -508,7 +505,6 @@ let test_rate_food_non_existent_food =
   in
   assert_equal () result
 
-(**GOOD TEST WITH COVERAGE FOR RATE_FOOD*)
 let test_rate_food =
   "food rating" >:: fun _ ->
   let public_db = create_in_memory_db () in
@@ -542,7 +538,6 @@ let test_view_food_rating =
   let public_db = create_in_memory_db () in
   let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
 
-  (* Insert a test rating *)
   let insert_query =
     "INSERT INTO Ratings (eatery_name, food_item, username, rating, date, \
      time) VALUES (?, ?, ?, ?, ?, ?);"
@@ -590,7 +585,6 @@ let test_view_food_rating =
 
 let setup_in_memory_db () =
   let db = create_in_memory_db () in
-  (* Add any additional initialization here if needed *)
   db
 
 let teardown_in_memory_db db = ignore (Sqlite3.db_close db)
@@ -697,7 +691,6 @@ let test_sort_by_highest_rating =
   "Sort by highest rating" >:: fun _ ->
   let db = create_in_memory_db () in
 
-  (* Insert test data *)
   let insert_data =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
@@ -706,7 +699,6 @@ let test_sort_by_highest_rating =
     ]
   in
 
-  (* Insert data into the database *)
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
@@ -723,10 +715,8 @@ let test_sort_by_highest_rating =
       Sqlite3.finalize stmt |> ignore)
     insert_data;
 
-  (* Run the sorting function *)
   Lwt_main.run (sort_by_highest_rating db "Ratings");
 
-  (* Query the first row to check if it has the highest rating *)
   let stmt =
     Sqlite3.prepare db
       "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
@@ -734,7 +724,6 @@ let test_sort_by_highest_rating =
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW ->
       let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
-      (* Check if the highest rating is as expected *)
       assert_equal (Some 5) rating
   | _ ->
       assert_failure "Failed to retrieve the highest rating from the database"
@@ -1139,14 +1128,11 @@ let ratings_tests =
          test_rate_food_as_guest;
          test_rate_food_invalid_eatery;
          test_rate_food_non_existent_food;
-         (* test_rate_food_no_user_logged_in; *)
          test_view_food_rating;
          test_rate_food;
          test_rate_food_update_existing_rating;
          test_rate_food_invalid_rating_value;
          test_show_personal_ratings_with_data;
-         (* test_show_personal_ratings_empty_table;
-            test_show_public_ratings_for_food; *)
        ]
 
 let data_tests =
