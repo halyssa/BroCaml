@@ -512,7 +512,7 @@ let test_rate_food_as_guest =
   "Rate food as guest" >:: fun _ ->
   let db = create_in_memory_db () in
   let is_guest = ref true in
-  let current_user = ref None in
+  let current_user = "" in
   let result =
     Lwt_main.run
       (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries)
@@ -525,7 +525,7 @@ let test_rate_food =
   let public_db = create_in_memory_db () in
   let personal_db = create_in_memory_db () in
   let is_guest = ref false in
-  let current_user = ref (Some "testuser") in
+  let current_user = "testuser" in
   let eateries = [ create_eatery "Eatery1" [ "Food1"; "Food2" ] ] in
 
   let result =
@@ -639,7 +639,7 @@ let test_show_personal_ratings_with_data =
   let db = setup_in_memory_db () in
   populate_personal_ratings_table db;
   let is_guest = ref false in
-  Lwt_main.run (show_personal_ratings db is_guest);
+  Lwt_main.run (show_personal_ratings db "" is_guest);
   teardown_in_memory_db db
 
 (** [test_show_public_ratings] tests the [show_public_ratings] function by simulating the retrieval of public
@@ -719,7 +719,7 @@ let test_rate_food_invalid_rating_value =
   "Rate food with invalid rating value (out of range)" >:: fun _ ->
   let db = create_in_memory_db () in
   let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
+  let current_user = "john_doe" in
   let result =
     Lwt_main.run
       (rate_food db db "Pizza" "Grill House" 6 is_guest current_user false eateries)
@@ -732,7 +732,7 @@ let test_view_food_rating_with_comments =
   "View food rating with comments" >:: fun _ ->
   let db = create_in_memory_db () in
   let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
+  let current_user = "john_doe" in
   Lwt_main.run
     (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries);
   Lwt_main.run
@@ -757,7 +757,7 @@ let test_view_food_rating_no_comments =
   "View food rating with no comments" >:: fun _ ->
   let db = create_in_memory_db () in
   let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
+  let current_user = "john_doe" in
   Lwt_main.run
     (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries);
   let result =
@@ -986,7 +986,7 @@ let test_sort_by_date_asc =
 (** [test_sort_by_date_desc] tests the [sort_by_date_desc] function to ensure that ratings are sorted
     by date in descending order. *)
 let test_sort_by_date_desc =
-  "Sort by date ascending" >:: fun _ ->
+  "Sort by date descending" >:: fun _ ->
   let db = create_in_memory_db () in
 
   let insert_data =
@@ -1024,10 +1024,10 @@ let test_sort_by_date_desc =
       let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
       let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
       let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
-      assert_equal (Some "Burger Joint") first_eatery;
-      assert_equal (Some "2023-12-01") first_date;
-      assert_equal (Some "09:00:00") first_time;
-      Lwt_main.run (sort_by_date_asc db "Ratings")
+      assert_equal (Some "Grill House") first_eatery;
+      assert_equal (Some "2023-12-03") first_date;
+      assert_equal (Some "14:00:00") first_time;
+      Lwt_main.run (sort_by_date_desc db "Ratings")
   | _ -> assert_failure "Failed to retrieve the first row from the database"
 
 (** [test_sort_by_food_alphabetical] tests the [sort_by_food_alphabetical] function,
