@@ -102,7 +102,7 @@ let rec prompt_user_sort_3 db eateries =
       print_endline "Invalid choice. Please try again.";
       prompt_user_sort_3 db eateries
 
-let rec prompt_user_sort_4 db eateries =
+let rec prompt_user_sort_4 db food eateries =
   print_endline "\nSelect a sorting option: ";
   print_endline "1. Sort by highest rating";
   print_endline "2. Sort by lowest rating";
@@ -113,33 +113,14 @@ let rec prompt_user_sort_4 db eateries =
   print_endline "7. Go back";
 
   let choice = read_line () in
-  let table = "Ratings" in
   match choice with
-  | "" ->
-      let%lwt () = sort_by_date_asc db table in
-      prompt_user_sort_4 db eateries
-  | "1" ->
-      let%lwt () = sort_by_highest_rating db table in
-      prompt_user_sort_4 db eateries
-  | "2" ->
-      let%lwt () = sort_by_lowest_rating db table in
-      prompt_user_sort_4 db eateries
-  | "3" ->
-      let%lwt () = sort_by_eatery_alphabetical db table in
-      prompt_user_sort_4 db eateries
-  | "4" ->
-      let%lwt () = sort_by_eatery_reverse_alphabetical db table in
-      prompt_user_sort_4 db eateries
-  | "5" ->
-      let%lwt () = sort_by_date_asc db table in
-      prompt_user_sort_4 db eateries
-  | "6" ->
-      let%lwt () = sort_by_date_desc db table in
-      prompt_user_sort_4 db eateries
+  | "1" | "2" | "3" | "4" | "5" | "6" ->
+      show_public_ratings db food choice;
+      prompt_user_sort_4 db food eateries
   | "7" -> Lwt.return () (* Exit sorting menu *)
   | _ ->
       print_endline "Invalid choice. Please try again.";
-      prompt_user_sort_4 db eateries
+      prompt_user_sort_4 db food eateries
 
 let debug_db db description =
   Printf.printf "Debugging DB (%s): %s\n" description
@@ -186,7 +167,7 @@ let rec prompt_user_rate public_db personal_db eateries =
   | [ "4"; food ] ->
       print_endline "Querying Ratings from public_db...";
 
-      let%lwt () = prompt_user_sort_4 public_db food in
+      let%lwt () = prompt_user_sort_4 public_db food eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "5" ] -> Lwt.return (quit_program ())
   | _ ->

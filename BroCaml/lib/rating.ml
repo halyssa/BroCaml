@@ -263,11 +263,21 @@ let show_personal_ratings db is_guest =
         fetch_rows ())
       (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
-let show_public_ratings db food =
+let show_public_ratings db food choice =
   let query =
-    "SELECT eatery_name, rating, date, time FROM Ratings WHERE food_item = ?;"
+    "SELECT eatery_name, rating, date, time FROM Ratings WHERE food_item = ?"
   in
-  let stmt = Sqlite3.prepare db query in
+  let sorted_query =
+    match choice with
+    | "1" -> query ^ " ORDER BY rating DESC"
+    | "2" -> query ^ " ORDER BY rating ASC"
+    | "3" -> query ^ " ORDER BY eatery_name DESC"
+    | "4" -> query ^ " ORDER BY eatery_name ASC"
+    | "5" -> query ^ " ORDER BY date ASC, time ASC"
+    | "6" -> query ^ " ORDER BY date DESC, time DESC"
+    | _ -> query (* Default case, no sorting *)
+  in
+  let stmt = Sqlite3.prepare db sorted_query in
   try
     Sqlite3.bind_text stmt 1 food |> ignore;
     print_endline
