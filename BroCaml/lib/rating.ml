@@ -335,7 +335,7 @@ let sort_by_highest_rating db table =
     (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
 let sort_by_lowest_rating db table =
-  let query = Printf.sprintf "SELECT * FROM %s ORDER BY rating ASC;" table in
+  let query = Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY rating ASC;" table in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
     (fun () ->
@@ -346,7 +346,7 @@ let sort_by_lowest_rating db table =
 (* sort abc *)
 let sort_by_eatery_alphabetical db table =
   let query =
-    Printf.sprintf "SELECT * FROM %s ORDER BY eatery_name ASC;" table
+    Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY eatery_name ASC;" table
   in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
@@ -357,7 +357,7 @@ let sort_by_eatery_alphabetical db table =
 
 let sort_by_eatery_reverse_alphabetical db table =
   let query =
-    Printf.sprintf "SELECT * FROM %s ORDER BY eatery_name DESC;" table
+    Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY eatery_name DESC;" table
   in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
@@ -367,7 +367,7 @@ let sort_by_eatery_reverse_alphabetical db table =
     (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
 let sort_by_food_alphabetical db table =
-  let query = Printf.sprintf "SELECT * FROM %s ORDER BY food_item ASC;" table in
+  let query = Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY food_item ASC;" table in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
     (fun () ->
@@ -377,7 +377,7 @@ let sort_by_food_alphabetical db table =
 
 let sort_by_food_reverse_alphabetical db table =
   let query =
-    Printf.sprintf "SELECT * FROM %s ORDER BY food_item DESC;" table
+    Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY food_item DESC;" table
   in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
@@ -389,7 +389,7 @@ let sort_by_food_reverse_alphabetical db table =
 (* chronological *)
 let sort_by_date_asc db table =
   let query =
-    Printf.sprintf "SELECT * FROM %s ORDER BY date ASC, time ASC;" table
+    Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY date ASC, time ASC;" table
   in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
@@ -400,7 +400,7 @@ let sort_by_date_asc db table =
 
 let sort_by_date_desc db table =
   let query =
-    Printf.sprintf "SELECT * FROM %s ORDER BY date DESC, time DESC;" table
+    Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY date DESC, time DESC;" table
   in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize

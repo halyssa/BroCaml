@@ -739,7 +739,396 @@ let test_sort_by_highest_rating =
   | _ ->
       assert_failure "Failed to retrieve the highest rating from the database"
 
-let sorting_tests = "Sorting tests" >::: [ test_sort_by_highest_rating ]
+let test_sort_by_highest_rating =
+  "Sort by highest rating" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  Lwt_main.run (sort_by_highest_rating db "Ratings");
+
+  let stmt =
+    Sqlite3.prepare db
+      "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
+  in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
+      assert_equal (Some 5) rating
+  | _ ->
+      assert_failure "Failed to retrieve the highest rating from the database"
+
+let test_sort_by_lowest_rating =
+  "Sort by lowest rating" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  Lwt_main.run (sort_by_lowest_rating db "Ratings");
+
+  let stmt =
+    Sqlite3.prepare db "SELECT rating FROM Ratings ORDER BY rating ASC LIMIT 1;"
+  in
+
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
+      assert_equal (Some 3) rating
+  | _ -> assert_failure "Failed to retrieve the lowest rating from the database"
+
+let test_sort_by_eatery_alphabetical =
+  "Sort by eatery name alphabetically" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT eatery_name FROM Ratings ORDER BY eatery_name ASC LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Burger Joint") first_eatery;
+      Lwt_main.run (sort_by_eatery_alphabetical db "Ratings")
+  | _ ->
+      assert_failure
+        "Failed to retrieve the first eatery name from the database"
+
+let test_sort_by_eatery_reverse_alphabetical =
+  "Sort by eatery name alphabetically" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT eatery_name FROM Ratings ORDER BY eatery_name DESC LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Sushi Place") first_eatery;
+      Lwt_main.run (sort_by_eatery_reverse_alphabetical db "Ratings")
+  | _ ->
+      assert_failure
+        "Failed to retrieve the first eatery name from the database"
+
+let test_sort_by_date_asc =
+  "Sort by date ascending" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date ASC, time ASC \
+     LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
+      let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Burger Joint") first_eatery;
+      assert_equal (Some "2023-12-01") first_date;
+      assert_equal (Some "09:00:00") first_time;
+      Lwt_main.run (sort_by_date_asc db "Ratings")
+  | _ -> assert_failure "Failed to retrieve the first row from the database"
+
+let test_sort_by_date_desc =
+  "Sort by date ascending" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date DESC, time DESC \
+     LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
+      let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Burger Joint") first_eatery;
+      assert_equal (Some "2023-12-01") first_date;
+      assert_equal (Some "09:00:00") first_time;
+      Lwt_main.run (sort_by_date_asc db "Ratings")
+  | _ -> assert_failure "Failed to retrieve the first row from the database"
+
+let test_sort_by_date_desc =
+  "Sort by date descending" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date DESC, time DESC \
+     LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
+      let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Grill House") first_eatery;
+      assert_equal (Some "2023-12-03") first_date;
+      assert_equal (Some "14:00:00") first_time;
+      Lwt_main.run (sort_by_date_desc db "Ratings")
+  | _ -> assert_failure "Failed to retrieve the first row from the database"
+
+let test_sort_by_food_alphabetical =
+  "Sort by food alphabetical" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT food_item FROM Ratings ORDER BY food_item ASC LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_food = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Burrito") first_food;
+      Lwt_main.run (sort_by_food_alphabetical db "Ratings")
+  | _ -> assert_failure "Failed to retrieve the first row from the database"
+
+let test_sort_by_food_reverse_alphabetical =
+  "Sort by food reverse alphabetical" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
+    ]
+  in
+
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  let test_query =
+    "SELECT food_item FROM Ratings ORDER BY food_item DESC LIMIT 1;"
+  in
+  let stmt = Sqlite3.prepare db test_query in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let first_food = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
+      assert_equal (Some "Pizza") first_food;
+      Lwt_main.run (sort_by_food_reverse_alphabetical db "Ratings")
+  | _ -> assert_failure "Failed to retrieve the first row from the database"
+
+let sorting_tests =
+  "Sorting tests"
+  >::: [
+         test_sort_by_highest_rating;
+         test_sort_by_lowest_rating;
+         test_sort_by_eatery_alphabetical;
+         test_sort_by_eatery_reverse_alphabetical;
+         test_sort_by_date_asc;
+         test_sort_by_date_desc;
+         test_sort_by_food_alphabetical;
+         test_sort_by_food_reverse_alphabetical;
+       ]
 
 let ratings_tests =
   "Food Rating Tests"
