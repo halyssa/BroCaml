@@ -102,33 +102,6 @@ let rec prompt_user_sort_3 db eateries =
       print_endline "Invalid choice. Please try again.";
       prompt_user_sort_3 db eateries
 
-let rec prompt_user_sort_4 db food eateries =
-  print_endline "\nSelect a sorting option: ";
-  print_endline "1. Sort by highest rating";
-  print_endline "2. Sort by lowest rating";
-  print_endline "3. Sort eateries alphabetically (A-Z)";
-  print_endline "4. Sort eateries reverse alphabetically (Z-A)";
-  print_endline "5. Sort chronologically (oldest first)";
-  print_endline "6. Sort reverse chronologically (newest first)";
-  print_endline "7. Go back";
-
-  let choice = read_line () in
-  match choice with
-  | "1" | "2" | "3" | "4" | "5" | "6" ->
-      show_public_ratings db food choice;
-      prompt_user_sort_4 db food eateries
-  | "7" -> Lwt.return () (* Exit sorting menu *)
-  | _ ->
-      print_endline "Invalid choice. Please try again.";
-      prompt_user_sort_4 db food eateries
-
-let debug_db db description =
-  Printf.printf "Debugging DB (%s): %s\n" description
-    (if db == connect_db_checked personal_db_file then "personal_db"
-     else if db == connect_db_checked public_db_file then "public_db"
-     else "unknown");
-  ()
-
 let rec prompt_user_rate public_db personal_db eateries =
   print_endline "\n Which number best fits your desired action? ";
   print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza Okenshields 5)";
@@ -136,8 +109,7 @@ let rec prompt_user_rate public_db personal_db eateries =
     "2. View the rating of <food> at <eatery> (ex. 2 pizza Okenshields)";
 
   print_endline "3. View your personal ratings";
-  print_endline "4. View all ratings for <food> (ex. 4 pizza)";
-  print_endline "5. Quit";
+  print_endline "4. Quit";
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
   match parts with
@@ -160,16 +132,9 @@ let rec prompt_user_rate public_db personal_db eateries =
       let%lwt () = view_food_rating public_db food eatery eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
-      debug_db personal_db "Before prompt_user_sort_3";
-      (* print_endline "Querying PersonalRatings from personal_db..."; *)
       let%lwt () = prompt_user_sort_3 personal_db eateries in
       prompt_user_rate public_db personal_db eateries
-  | [ "4"; food ] ->
-      print_endline "Querying Ratings from public_db...";
-
-      let%lwt () = prompt_user_sort_4 public_db food eateries in
-      prompt_user_rate public_db personal_db eateries
-  | [ "5" ] -> Lwt.return (quit_program ())
+  | [ "4" ] -> Lwt.return (quit_program ())
   | _ ->
       print_endline "That action does not exist or is incorrectly formatted.";
       prompt_user_rate public_db personal_db eateries
@@ -267,8 +232,6 @@ let debug_list_tables db db_name =
 
 (* main *)
 let () =
-  (* debug_list_tables personal_db "personal_db"; debug_list_tables public_db
-     "public_db"; *)
   Lwt_main.run
     (let%lwt () = login_or_create_account public_db in
      user_entered public_db personal_db);

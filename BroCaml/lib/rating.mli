@@ -1,7 +1,3 @@
-val show_public_ratings : Sqlite3.db -> string -> string -> unit
-(** [show_public_ratings db food choice] displays public ratings for [food] from
-    database [db], sorted according to [choice]. *)
-
 val rate_food :
   Sqlite3.db ->
   Sqlite3.db ->
