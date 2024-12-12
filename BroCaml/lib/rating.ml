@@ -263,6 +263,50 @@ let show_personal_ratings db is_guest =
         fetch_rows ())
       (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
+let show_public_ratings db food choice =
+  let query =
+    "SELECT eatery_name, rating, date, time FROM Ratings WHERE food_item = ?"
+  in
+  let sorted_query =
+    match choice with
+    | "1" -> query ^ " ORDER BY rating DESC"
+    | "2" -> query ^ " ORDER BY rating ASC"
+    | "3" -> query ^ " ORDER BY eatery_name DESC"
+    | "4" -> query ^ " ORDER BY eatery_name ASC"
+    | "5" -> query ^ " ORDER BY date ASC, time ASC"
+    | "6" -> query ^ " ORDER BY date DESC, time DESC"
+    | _ -> query (* Default case, no sorting *)
+  in
+  let stmt = Sqlite3.prepare db sorted_query in
+  try
+    Sqlite3.bind_text stmt 1 food |> ignore;
+    print_endline
+      ("Displaying all ratings for \"" ^ food ^ "\" in the public database:");
+    print_endline "------------------------------------------------------------";
+    while Sqlite3.step stmt = Sqlite3.Rc.ROW do
+      let eatery_name =
+        Sqlite3.column stmt 0 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let rating =
+        Sqlite3.column stmt 1 |> Sqlite3.Data.to_int |> Option.value ~default:0
+      in
+      let date =
+        Sqlite3.column stmt 2 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      let time =
+        Sqlite3.column stmt 3 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      Printf.printf "Eatery: %s | Rating: %d | Date: %s | Time: %s\n"
+        eatery_name rating date time
+    done;
+    Sqlite3.finalize stmt |> ignore
+  with exn ->
+    Sqlite3.finalize stmt |> ignore;
+    raise exn
+
 (**[print_results] is a helper function to print the results from sorting a
    database *)
 let print_results stmt =
