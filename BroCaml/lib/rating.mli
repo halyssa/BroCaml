@@ -5,7 +5,7 @@ val rate_food :
   string ->
   int ->
   bool ref ->
-  string option ref ->
+  string ->
   bool ->
   User.eatery list ->
   unit Lwt.t
@@ -18,8 +18,8 @@ val view_food_rating :
 (** [view_food_rating public_db food eatery eateries] displays ratings for
     [food] at [eatery] from [public_db]. *)
 
-val show_personal_ratings : Sqlite3.db -> bool ref -> unit Lwt.t
-(** [show_personal_ratings db is_guest] displays personal ratings from [db] if
+val show_personal_ratings : Sqlite3.db -> string -> bool ref -> unit Lwt.t
+(** [show_personal_ratings db username is_guest] displays personal ratings from [db] for [username] if
     not a guest. *)
 val show_public_ratings : Sqlite3.db -> Sqlite3.header -> Sqlite3.header -> unit
 

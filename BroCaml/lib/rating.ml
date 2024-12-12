@@ -14,12 +14,12 @@ let rate_food public_db personal_db food eatery rating is_guest current_user
   else if not (eatery_exists eatery eateries) then
     Lwt.return (print_endline "Error: Eatery does not exist.")
   else
-    match !current_user with
-    | None ->
+    match current_user with
+    | "" ->
         Lwt.return
           (print_endline
              "Error: No user logged in. Please log in first to submit ratings.")
-    | Some username ->
+    | username ->
         if not (contains food eateries) then
           Lwt.return
             (print_endline
@@ -221,7 +221,7 @@ let view_food_rating public_db food eatery eateries =
     (* Finalize the statement to release resources *)
     Lwt.return (Sqlite3.finalize stmt |> ignore)
 
-let show_personal_ratings db is_guest =
+let show_personal_ratings db (username : string) is_guest =
   if !is_guest then
     Lwt.return
       (print_endline
@@ -229,13 +229,21 @@ let show_personal_ratings db is_guest =
           an account to see your past ratings.")
   else
     let query =
-      "SELECT eatery_name, food_item, rating, date, time FROM PersonalRatings;"
+      "SELECT eatery_name, food_item, rating, date, time FROM Ratings WHERE \
+       username = ?;"
     in
     let stmt = Sqlite3.prepare db query in
     Lwt.finalize
       (fun () ->
-        print_endline "Displaying all ratings in PersonalRatings:";
+        (* Bind the username to the SQL query *)
+        Sqlite3.bind_text stmt 1 username |> ignore;
+
+        (* Debugging: Print the username to verify it's passed correctly *)
+        Printf.printf "Querying personal ratings for username: %s\n" username;
+
+        print_endline "Displaying all personal ratings:";
         print_endline "------------------------------------------";
+
         let rec fetch_rows () =
           match Sqlite3.step stmt with
           | Sqlite3.Rc.ROW ->
@@ -263,7 +271,10 @@ let show_personal_ratings db is_guest =
                 "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
                 eatery_name food_item rating date time;
               fetch_rows () (* Recursive call to fetch next row *)
-          | Sqlite3.Rc.DONE -> Lwt.return_unit (* End of rows *)
+          | Sqlite3.Rc.DONE ->
+              Printf.printf " \n Finished displaying personal ratings for %s.\n"
+                username;
+              Lwt.return_unit (* End of rows *)
           | _ ->
               print_endline "Error while processing personal ratings.";
               Lwt.return_unit
@@ -273,7 +284,8 @@ let show_personal_ratings db is_guest =
 
 let show_public_ratings db food choice =
   let query =
-    "SELECT eatery_name, rating, date, time FROM Ratings WHERE food_item = ?"
+    "SELECT eatery_name, username, rating, date, time FROM Ratings WHERE \
+     food_item = ?"
   in
   let sorted_query =
     match choice with
@@ -296,19 +308,23 @@ let show_public_ratings db food choice =
         Sqlite3.column stmt 0 |> Sqlite3.Data.to_string
         |> Option.value ~default:"NULL"
       in
-      let rating =
-        Sqlite3.column stmt 1 |> Sqlite3.Data.to_int |> Option.value ~default:0
-      in
-      let date =
-        Sqlite3.column stmt 2 |> Sqlite3.Data.to_string
+      let username =
+        Sqlite3.column stmt 1 |> Sqlite3.Data.to_string
         |> Option.value ~default:"NULL"
       in
-      let time =
+      let rating =
+        Sqlite3.column stmt 2 |> Sqlite3.Data.to_int |> Option.value ~default:0
+      in
+      let date =
         Sqlite3.column stmt 3 |> Sqlite3.Data.to_string
         |> Option.value ~default:"NULL"
       in
-      Printf.printf "Eatery: %s | Rating: %d | Date: %s | Time: %s\n"
-        eatery_name rating date time
+      let time =
+        Sqlite3.column stmt 4 |> Sqlite3.Data.to_string
+        |> Option.value ~default:"NULL"
+      in
+      Printf.printf "Eatery: %s | Rating: %d | User: %s | Date: %s | Time: %s\n"
+        eatery_name rating username date time
     done;
     Sqlite3.finalize stmt |> ignore
   with exn ->

@@ -6,7 +6,7 @@ open Cohttp_lwt_unix
 open Sqlite3
 open BroCaml.Rating
 
-let current_user : string option ref = ref None
+let current_user = ref ""
 let is_guest : bool ref = ref false
 let public_db_file = "findmyfood.db"
 let personal_db_file = "personal_ratings.db"
@@ -72,11 +72,12 @@ let rec prompt_user_sort_3 db eateries =
   print_endline "9. Go back";
 
   let choice = read_line () in
-  let table = "PersonalRatings" in
+  let table = "Ratings" in
   match choice with
   | "" ->
       (* Default option: ascending chronological order *)
-      let%lwt () = show_personal_ratings db is_guest in
+      let user = !current_user in
+      let%lwt () = show_personal_ratings db user is_guest in
       prompt_user_sort_3 db eateries
   | "1" ->
       let%lwt () = sort_by_highest_rating db table in
@@ -107,6 +108,25 @@ let rec prompt_user_sort_3 db eateries =
       print_endline "Invalid choice. Please try again.";
       prompt_user_sort_3 db eateries
 
+let rec prompt_user_sort_4 db food eateries =
+  print_endline "\nSelect a sorting option: ";
+  print_endline "1. Sort by highest rating";
+  print_endline "2. Sort by lowest rating";
+  print_endline "3. Sort eateries alphabetically (A-Z)";
+  print_endline "4. Sort eateries reverse alphabetically (Z-A)";
+  print_endline "5. Sort chronologically (oldest first)";
+  print_endline "6. Sort reverse chronologically (newest first)";
+  print_endline "7. Go back";
+  let choice = read_line () in
+  match choice with
+  | "1" | "2" | "3" | "4" | "5" | "6" ->
+      show_public_ratings db food choice;
+      prompt_user_sort_4 db food eateries
+  | "7" -> Lwt.return () (* Exit sorting menu *)
+  | _ ->
+      print_endline "Invalid choice. Please try again.";
+      prompt_user_sort_4 db food eateries
+
 let rec prompt_user_rate public_db personal_db eateries =
   print_endline "\n Which number best fits your desired action? ";
   print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza 5 Okenshields)";
@@ -114,7 +134,8 @@ let rec prompt_user_rate public_db personal_db eateries =
     "2. View the rating of <food> at <eatery> (ex. 2 pizza Okenshields)";
 
   print_endline "3. View your personal ratings";
-  print_endline "4. Quit";
+  print_endline "4. Show all ratings for <food> (ex. 4 pizza)";
+  print_endline "5. Quit";
   let eatery = ref "" in
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
@@ -135,14 +156,16 @@ let rec prompt_user_rate public_db personal_db eateries =
           match read_line () with
           | "y" ->
               let%lwt () =
+                let user = !current_user in
                 rate_food public_db personal_db food !eatery rating is_guest
-                  current_user true eateries
+                  user true eateries
               in
               prompt_user_rate public_db personal_db eateries
           | _ ->
+              let user = !current_user in
               let%lwt () =
                 rate_food public_db personal_db food !eatery rating is_guest
-                  current_user false eateries
+                  user false eateries
               in
               prompt_user_rate public_db personal_db eateries)
       with Failure _ ->
@@ -152,9 +175,15 @@ let rec prompt_user_rate public_db personal_db eateries =
       let%lwt () = view_food_rating public_db food eatery eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
-      let%lwt () = prompt_user_sort_3 personal_db eateries in
+      (* let%lwt () = prompt_user_sort_3 public_db eateries in prompt_user_rate
+         public_db public_db eateries *)
+      let user = !current_user in
+      let%lwt () = show_personal_ratings public_db user is_guest in
       prompt_user_rate public_db personal_db eateries
-  | [ "4" ] -> Lwt.return (quit_program ())
+  | [ "4"; food ] ->
+      let%lwt () = prompt_user_sort_4 public_db food eateries in
+      prompt_user_rate public_db personal_db eateries
+  | [ "5" ] -> Lwt.return (quit_program ())
   | _ ->
       print_endline "That action does not exist or is incorrectly formatted.";
       prompt_user_rate public_db personal_db eateries
@@ -197,7 +226,7 @@ let rec login_or_create_account db =
       let password = read_line () in
       if%lwt validate_user db username password then (
         Printf.printf "Welcome back, %s!\n" username;
-        current_user := Some username;
+        current_user := username;
         (* Set the current user *)
         Lwt.return_unit
         (* Exit recursion on success *))
@@ -219,7 +248,7 @@ let rec login_or_create_account db =
         Lwt.ignore_result
           (create_user ~finalize:finalize_fn db username password;
            print_endline "Account created successfully!";
-           current_user := Some username;
+           current_user := username;
            Lwt.return_unit (* To ensure we're returning a proper Lwt value *));
         Lwt.return_unit)
       (* Set the current user *)
