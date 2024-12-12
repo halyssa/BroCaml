@@ -33,18 +33,6 @@ let validate_user db username password =
          finalize stmt |> ignore;
          raise (BindingError "Database error during user validation."))
 
-(** [finalize_statement] is a function to clean up SQL statement after
-    execution. *)
-let finalize_statement ~finalize stmt db =
-  match finalize stmt db with
-  | Sqlite3.Rc.OK -> ()
-  | Sqlite3.Rc.ERROR ->
-      failwith ("Failed to finalize statement: " ^ Sqlite3.errmsg db)
-  | Sqlite3.Rc.MISUSE -> failwith "SQLite MISUSE detected during finalize."
-  | other ->
-      failwith
-        ("Unexpected result during finalize: " ^ Sqlite3.Rc.to_string other)
-
 let create_user ~finalize db username password =
   let query = "INSERT INTO Users (username, password_hash) VALUES (?, ?);" in
   let stmt = Sqlite3.prepare db query in
@@ -58,26 +46,6 @@ let create_user ~finalize db username password =
     | _ -> raise (Failure "Unexpected result during user creation")
   with exn ->
     finalize stmt db;
-    raise exn
-
-let fetch_users ~finalize db =
-  let query = "SELECT id, username FROM Users;" in
-  let stmt = prepare db query in
-  try
-    print_endline "Users in the database:";
-    while step stmt = Sqlite3.Rc.ROW do
-      let id =
-        column stmt 0 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      let username =
-        column stmt 1 |> Data.to_string |> Option.value ~default:"NULL"
-      in
-      Printf.printf "ID: %s, Username: %s\n" id username
-    done;
-    finalize_statement ~finalize stmt db (* Pass finalize function *)
-  with exn ->
-    finalize_statement ~finalize stmt db;
-    (* Pass finalize function *)
     raise exn
 
 let connect_db_checked db_file =

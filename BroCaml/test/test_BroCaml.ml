@@ -201,6 +201,8 @@ let test_create_user _ =
 
   assert_equal 1 count
 
+let mock_finalize result _stmt _db = Lwt.return result
+
 let login_tests =
   "login tests"
   >::: [

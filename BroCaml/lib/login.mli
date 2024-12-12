@@ -19,11 +19,6 @@ val create_user :
 (** [create_user ~finalize db username password] creates a new user with
     username [username] and password [password] in the database [db]. *)
 
-val fetch_users :
-  finalize:(Sqlite3.stmt -> Sqlite3.db -> Sqlite3.Rc.t) -> Sqlite3.db -> unit
-(** [fetch_users ~finalize db] fetches and prints all users in the database
-    [db]. *)
-
 val connect_db_checked : string -> Sqlite3.db
 (** [connect_db_checked db_file] opens a connection to the database file
     [db_file] *)
