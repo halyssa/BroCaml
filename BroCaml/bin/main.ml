@@ -28,7 +28,13 @@ let run_search_food food eateries =
 let run_contains food eateries =
   let result = contains food eateries in
   match result with
-  | true -> run_search_food food eateries
+  | true ->
+      Printf.printf
+        "%s is served in the eateries today! Would you like to see where it is \
+         served (y/n)? "
+        food;
+      let response = read_line () in
+      if response = "y" then run_search_food food eateries
   | false ->
       Printf.printf "Unfortunately, %s is not served in the eateries today. "
         food
