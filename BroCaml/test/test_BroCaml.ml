@@ -515,7 +515,7 @@ let test_rate_food_as_guest =
   let current_user = ref None in
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries)
   in
   assert_equal () result
 
@@ -530,7 +530,7 @@ let test_rate_food =
 
   let result =
     Lwt_main.run
-      (rate_food public_db personal_db "Food1" "Eatery1" 5 is_guest current_user
+      (rate_food public_db personal_db "Food1" "Eatery1" 5 is_guest current_user false
          eateries)
   in
 
@@ -722,7 +722,7 @@ let test_rate_food_invalid_rating_value =
   let current_user = ref (Some "john_doe") in
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 6 is_guest current_user eateries)
+      (rate_food db db "Pizza" "Grill House" 6 is_guest current_user false eateries)
   in
   assert_equal () result
 
@@ -734,9 +734,9 @@ let test_view_food_rating_with_comments =
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries);
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries);
   let result =
     Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
   in
@@ -759,7 +759,7 @@ let test_view_food_rating_no_comments =
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false eateries);
   let result =
     Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
   in
