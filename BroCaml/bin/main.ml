@@ -30,9 +30,8 @@ let run_contains food eateries =
   match result with
   | true ->
       Printf.printf
-        "%s is served in the eateries today! Would you like to see where it is \
-         served (y/n)? "
-        food;
+        "%s is served in the eateries today!\n\
+        \   Would you like to see where it is  served (y/n)? " food;
       let response = read_line () in
       if response = "y" then run_search_food food eateries
   | false ->
@@ -61,7 +60,7 @@ let rec prompt_user_find public_db personal_db eateries =
 
 let rec prompt_user_sort_3 db eateries =
   print_endline
-    "\nSelect a sorting option: (default is ascending chronological)";
+    "\n Select a sorting option: (default is ascending chronological)";
   print_endline "1. Sort by highest rating";
   print_endline "2. Sort by lowest rating";
   print_endline "3. Sort eateries alphabetically (A-Z)";
@@ -125,12 +124,22 @@ let rec prompt_user_rate public_db personal_db eateries =
         if rating < 1 || rating > 5 then (
           print_endline "Rating must be between 1 and 5.";
           prompt_user_rate public_db personal_db eateries)
-        else
-          let%lwt () =
-            rate_food public_db personal_db food eatery rating is_guest
-              current_user eateries
-          in
-          prompt_user_rate public_db personal_db eateries
+        else (
+          print_endline
+            "Would you like to submit this rating anonymously? (y/n)";
+          match read_line () with
+          | "y" ->
+              let%lwt () =
+                rate_food public_db personal_db food eatery rating is_guest
+                  current_user true eateries
+              in
+              prompt_user_rate public_db personal_db eateries
+          | _ ->
+              let%lwt () =
+                rate_food public_db personal_db food eatery rating is_guest
+                  current_user false eateries
+              in
+              prompt_user_rate public_db personal_db eateries)
       with Failure _ ->
         print_endline "Invalid rating. Please enter a number between 1 and 5.";
         prompt_user_rate public_db personal_db eateries)
@@ -208,7 +217,7 @@ let rec login_or_create_account db =
            current_user := Some username;
            Lwt.return_unit (* To ensure we're returning a proper Lwt value *));
         Lwt.return_unit)
-  (* Set the current user *)
+      (* Set the current user *)
   | "3" ->
       (* Proceed as a guest *)
       print_endline "You are now proceeding as a guest.";
@@ -221,14 +230,14 @@ let rec login_or_create_account db =
       login_or_create_account db
 
 let debug_list_tables db db_name =
-  let query = "SELECT name FROM sqlite_master WHERE type='table';" in
+  let query = "SELECT name FROM\n   sqlite_master WHERE type='table';" in
   let stmt = Sqlite3.prepare db query in
   Printf.printf "Listing tables in %s:\n" db_name;
   let rec fetch_tables () =
     match Sqlite3.step stmt with
     | Sqlite3.Rc.ROW ->
         let table_name = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
-        Printf.printf "  - %s\n" (Option.value ~default:"UNKNOWN" table_name);
+        Printf.printf " - %s\n" (Option.value ~default:"UNKNOWN" table_name);
         fetch_tables ()
     | Sqlite3.Rc.DONE -> ()
     | _ -> print_endline "Error fetching tables."

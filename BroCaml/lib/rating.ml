@@ -5,7 +5,7 @@ open Login
 open User
 
 let rate_food public_db personal_db food eatery rating is_guest current_user
-    eateries =
+    is_anon eateries =
   if !is_guest then
     Lwt.return
       (print_endline
@@ -40,21 +40,29 @@ let rate_food public_db personal_db food eatery rating is_guest current_user
           (* Function to insert or update the public database *)
           let insert_public () =
             let query =
-              "INSERT INTO Ratings (eatery_name, food_item, username, rating, \
-               date, time)\n\
-               VALUES (?, ?, ?, ?, ?, ?)\n\
-               ON CONFLICT(eatery_name, food_item, username, date)\n\
-               DO UPDATE SET rating = excluded.rating, time = excluded.time;"
+              if is_anon then
+                "INSERT INTO Ratings (eatery_name, food_item, username, \
+                 rating, date, time)\n\
+                 VALUES (?, ?, 'anonymous', ?, ?, ?);"
+              else
+                "INSERT INTO Ratings (eatery_name, food_item, username, \
+                 rating, date, time)\n\
+                 VALUES (?, ?, ?, ?, ?, ?)\n\
+                 ON CONFLICT(eatery_name, food_item, username, date)\n\
+                 DO UPDATE SET rating = excluded.rating, time = excluded.time;"
             in
             let stmt = Sqlite3.prepare public_db query in
             Lwt.finalize
               (fun () ->
                 Sqlite3.bind_text stmt 1 eatery |> ignore;
                 Sqlite3.bind_text stmt 2 food |> ignore;
-                Sqlite3.bind_text stmt 3 username |> ignore;
-                Sqlite3.bind_int stmt 4 rating |> ignore;
-                Sqlite3.bind_text stmt 5 current_date |> ignore;
-                Sqlite3.bind_text stmt 6 current_time |> ignore;
+                if not is_anon then Sqlite3.bind_text stmt 3 username |> ignore;
+                Sqlite3.bind_int stmt (if is_anon then 3 else 4) rating
+                |> ignore;
+                Sqlite3.bind_text stmt (if is_anon then 4 else 5) current_date
+                |> ignore;
+                Sqlite3.bind_text stmt (if is_anon then 5 else 6) current_time
+                |> ignore;
 
                 match Sqlite3.step stmt with
                 | Sqlite3.Rc.DONE ->

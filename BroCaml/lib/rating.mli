@@ -6,9 +6,10 @@ val rate_food :
   int ->
   bool ref ->
   string option ref ->
+  bool ->
   User.eatery list ->
   unit Lwt.t
-(** [rate_food public_db personal_db food eatery rating is_guest current_user]
+(** [rate_food public_db personal_db food eatery rating is_guest current_user is_anon eateries]
     adds a rating for [food] at [eatery] to [public_db] and [personal_db] if not
     a guest. *)
 

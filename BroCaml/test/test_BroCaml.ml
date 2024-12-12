@@ -28,35 +28,35 @@ let test_create_eatery_invalid =
 let contains_helper_test =
   "contains helper tests"
   >::: [
-         ( "food in any eatery menu, exact match" >:: fun _ ->
-           assert_bool "Pasta should be found in eateries"
+         ( "food in any\n   eatery menu, exact match" >:: fun _ ->
+           assert_bool "Pasta should be found in\n   eateries"
              (contains "Pasta" eateries) );
-         ( "food in any eatery menu, case-insensitive match" >:: fun _ ->
-           assert_bool "burger should be found in eateries"
+         ( "food in any eatery menu,\n   case-insensitive match" >:: fun _ ->
+           assert_bool "burger should be found in\n   eateries"
              (contains "burger" eateries) );
          ( "food not in any eatery menu" >:: fun _ ->
            assert_bool "Pizza should not be found in eateries"
              (not (contains "Pizza" eateries)) );
          ( "food not in any eatery menu" >:: fun _ ->
            assert_bool "Kale Chips should not be found in eateries"
-             (not (contains "Kale Chips" eateries)) );
+             (not (contains "Kale\n   Chips" eateries)) );
          ( "food with special characters in menu" >:: fun _ ->
            let eatery_special_chars =
              create_eatery "Fancy Eatery"
-               [ "Chicken & Waffles"; "Grilled Chicken" ]
+               [ "Chicken &\n   Waffles"; "Grilled Chicken" ]
            in
-           assert_bool "Food with special characters should be found"
+           assert_bool "Food with special characters\n   should be found"
              (contains "Chicken & Waffles" [ eatery_special_chars ]) );
        ]
 
 let contains_tests =
   "contains function tests"
   >::: [
-         ( "food in any eatery menu, exact match" >:: fun _ ->
-           assert_bool "Pasta should be found in eateries"
+         ( "food in any eatery\n   menu, exact match" >:: fun _ ->
+           assert_bool "Pasta should be found in\n   eateries"
              (contains "Pasta" eateries) );
-         ( "food in any eatery menu, case-insensitive match" >:: fun _ ->
-           assert_bool "burger should be found in eateries"
+         ( "food in any eatery menu,\n   case-insensitive match" >:: fun _ ->
+           assert_bool "burger should be found in\n   eateries"
              (contains "burger" eateries) );
          ( "food not in any eatery menu" >:: fun _ ->
            assert_bool "Pizza should not be found in eateries"
@@ -118,8 +118,9 @@ let parse_eateries_tests =
 let setup_test_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_table_query =
-    "CREATE TABLE Users ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT \
-     NOT NULL UNIQUE, password_hash TEXT NOT NULL);"
+    "CREATE TABLE Users ( id INTEGER PRIMARY KEY\n\
+    \   AUTOINCREMENT, username TEXT  NOT NULL UNIQUE, password_hash TEXT NOT\n\
+    \   NULL);"
   in
   ignore (Sqlite3.exec db create_table_query);
   db
@@ -155,8 +156,8 @@ let test_validate_user _ =
 let test_validate_special_chars _ =
   let db = setup_test_db () in
   let insert_query =
-    "INSERT INTO Users (username, password_hash) VALUES ('user!@#$', \
-     'hash123');"
+    "INSERT INTO Users (username, password_hash) VALUES\n\
+    \   ('user!@#$',  'hash123');"
   in
   ignore (Sqlite3.exec db insert_query);
 
@@ -172,8 +173,10 @@ let finalize_wrapper stmt _db =
   match Sqlite3.finalize stmt with
   | Sqlite3.Rc.OK -> () (* This ensures no value is returned *)
   | Sqlite3.Rc.CONSTRAINT ->
-      failwith "Error creating user: UNIQUE constraint failed: Users.username"
-  | rc -> failwith ("Failed to finalize statement: " ^ Sqlite3.Rc.to_string rc)
+      failwith
+        "Error creating\n   user: UNIQUE constraint failed: Users.username"
+  | rc ->
+      failwith ("Failed to\n   finalize statement: " ^ Sqlite3.Rc.to_string rc)
 
 let test_create_user _ =
   let db = setup_test_db () in
@@ -182,7 +185,7 @@ let test_create_user _ =
   assert_bool "User should exist after creation" (user_exists db "new_user");
 
   assert_raises
-    (Failure "Error creating user: UNIQUE constraint failed: Users.username")
+    (Failure "Error creating user: UNIQUE constraint failed:\n   Users.username")
     (fun () ->
       create_user ~finalize:finalize_wrapper db "new_user" "password123");
 
@@ -202,13 +205,13 @@ let test_connect_db_checked _ =
   (* Test case 1: Database file exists *)
   let existing_db = Filename.temp_file "test_db" ".sqlite" in
   let db = connect_db_checked existing_db in
-  assert_bool "Database connection should be open" (db_close db);
+  assert_bool "Database connection should be\n   open" (db_close db);
   Sys.remove existing_db;
 
   (* Test case 2: Database file doesn't exist *)
   let non_existing_db = "/tmp/non_existing_db.sqlite" in
   assert_raises
-    (Failure ("Database file not found: " ^ non_existing_db))
+    (Failure ("Database file not\n   found: " ^ non_existing_db))
     (fun () -> connect_db_checked non_existing_db)
 
 let login_tests =
@@ -297,7 +300,7 @@ let test_parse_no_menu_events _ =
     ( parse_eateries no_menu_events_json >|= fun eateries ->
       assert_equal [ "Event Eatery" ] (List.map (fun e -> get_name e) eateries);
       assert_equal
-        [ [ "No menu available" ] ]
+        [ [ "No menu\n   available" ] ]
         (List.map (fun e -> get_menu e) eateries) )
 
 let test_fetch_invalid_json _ =
@@ -305,10 +308,10 @@ let test_fetch_invalid_json _ =
     (Lwt.catch
        (fun () ->
          Lwt.fail (Failure "JSON parsing error") >|= fun _ ->
-         assert_failure "Expected fetch_json to fail")
+         assert_failure "Expected\n   fetch_json to fail")
        (function
          | Failure msg ->
-             assert_equal "JSON parsing error" msg;
+             assert_equal "JSON parsing\n   error" msg;
              Lwt.return ()
          | _ -> assert_failure "Unexpected exception"))
 
@@ -325,7 +328,7 @@ let test_parse_eateries_valid_json _ =
                      [
                        `Assoc
                          [
-                           ("name", `String "Bistro Cafe");
+                           ("name", `String "Bistro\n   Cafe");
                            ( "diningItems",
                              `List [ `Assoc [ ("item", `String "Pasta") ] ] );
                          ];
@@ -379,9 +382,9 @@ let test_get_data_http_failure _ =
          Lwt.return ())
        (function
          | Failure msg ->
-             assert_equal "HTTP request failed with error" msg;
+             assert_equal "HTTP request failed\n   with error" msg;
              Lwt.return ()
-         | _ -> assert_failure "Expected fetch_json to fail"))
+         | _ -> assert_failure "Expected fetch_json to\n   fail"))
 
 let test_get_data_json_parsing_failure _ =
   let mock_fetch_json _ = Lwt.fail (Failure "JSON parsing error") in
@@ -415,33 +418,38 @@ let create_in_memory_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_ratings_table_query =
     "CREATE TABLE IF NOT EXISTS Ratings (\n\
-    \              eatery_name TEXT,\n\
-    \              food_item TEXT,\n\
-    \              username TEXT,\n\
-    \              rating INTEGER,\n\
-    \              comment TEXT, \n\
-    \              date TEXT,\n\
-    \              time TEXT,\n\
-    \              PRIMARY KEY (eatery_name, food_item, username, date)\n\
-    \            );"
+    \ eatery_name TEXT,\n\
+    \  food_item TEXT,\n\
+    \  username TEXT,\n\
+    \  rating\n\
+    \   INTEGER,\n\
+    \  comment TEXT, \n\
+    \  date TEXT,\n\
+    \  time TEXT,\n\
+    \  PRIMARY KEY\n\
+    \   (eatery_name, food_item, username, date)\n\
+    \  );"
   in
   let create_personal_ratings_table_query =
-    "CREATE TABLE IF NOT EXISTS PersonalRatings (\n\
-    \              eatery_name TEXT,\n\
-    \              food_item TEXT,\n\
-    \              rating INTEGER,\n\
-    \              comment TEXT, \n\n\
-    \                  date TEXT,\n\
-    \              time TEXT,\n\
-    \              PRIMARY KEY (eatery_name, food_item, date)\n\
-    \            );"
+    "CREATE TABLE IF NOT EXISTS\n\
+    \   PersonalRatings (\n\
+    \  eatery_name TEXT,\n\
+    \  food_item TEXT,\n\
+    \  rating\n\
+    \   INTEGER,\n\
+    \  comment TEXT, \n\n\
+    \  date TEXT,\n\
+    \  time TEXT,\n\
+    \  PRIMARY\n\
+    \   KEY (eatery_name, food_item, date)\n\
+    \  );"
   in
   ignore (Sqlite3.exec db create_ratings_table_query);
   ignore (Sqlite3.exec db create_personal_ratings_table_query);
   db
 
 let test_view_food_rating_no_ratings =
-  "View food rating when no ratings exist" >:: fun _ ->
+  "View food rating when no ratings\n   exist" >:: fun _ ->
   let db = create_in_memory_db () in
   let result =
     Lwt_main.run (view_food_rating db "Sushi" "Sushi Bar" eateries)
@@ -455,7 +463,8 @@ let test_rate_food_as_guest =
   let current_user = ref None in
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
+         eateries)
   in
   assert_equal () result
 
@@ -470,21 +479,21 @@ let test_rate_food =
   let result =
     Lwt_main.run
       (rate_food public_db personal_db "Food1" "Eatery1" 5 is_guest current_user
-         eateries)
+         false eateries)
   in
 
   assert_equal () result;
 
   let stmt =
     Sqlite3.prepare public_db
-      "SELECT rating FROM Ratings WHERE eatery_name = 'Eatery1' AND food_item \
-       = 'Food1'"
+      "SELECT rating FROM Ratings WHERE\n\
+      \   eatery_name = 'Eatery1' AND food_item  = 'Food1'"
   in
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW -> (
       match Sqlite3.column stmt 0 |> Sqlite3.Data.to_int with
       | Some rating -> assert_equal 5 rating
-      | None -> assert_failure "Rating is NULL")
+      | None -> assert_failure "Rating\n   is NULL")
   | _ -> assert_failure "Rating not found in public database"
 
 let test_view_food_rating =
@@ -493,11 +502,11 @@ let test_view_food_rating =
   let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
 
   let insert_query =
-    "INSERT INTO Ratings (eatery_name, food_item, username, rating, date, \
-     time) VALUES (?, ?, ?, ?, ?, ?);"
+    "INSERT INTO Ratings (eatery_name, food_item, username,\n\
+    \   rating, date,  time) VALUES (?, ?, ?, ?, ?, ?);"
   in
   let stmt = Sqlite3.prepare public_db insert_query in
-  Sqlite3.bind_text stmt 1 "Test Eatery" |> ignore;
+  Sqlite3.bind_text stmt 1 "Test\n   Eatery" |> ignore;
   Sqlite3.bind_text stmt 2 "Test Food" |> ignore;
   Sqlite3.bind_text stmt 3 "testuser" |> ignore;
   Sqlite3.bind_int stmt 4 4 |> ignore;
@@ -516,25 +525,24 @@ let test_view_food_rating =
   (* Run the function *)
   Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
 
-  (* Restore stdout and read captured output *)
-  Unix.dup2 old_stdout Unix.stdout;
+  (* Restore stdout and read captured output *) Unix.dup2 old_stdout Unix.stdout;
   let buffer = Bytes.create 1024 in
   let _ = Unix.read pipe_out buffer 0 1024 in
   output := Bytes.to_string buffer;
   Unix.close pipe_out;
 
   (* Print captured output for debugging *)
-  Printf.printf "Captured output: %s\n" !output;
+  Printf.printf "Captured output:\n   %s\n" !output;
 
   (* Check the output *)
   (* Check the output *)
-  assert_bool "Output should contain average rating"
+  assert_bool "Output should\n   contain average rating"
     (Str.string_match
-       (Str.regexp "The average rating for Test Food at Test Eatery is 4.00")
+       (Str.regexp "The average rating for\n   Test Food at Test Eatery is 4.00")
        !output 0);
-  assert_bool "Output should contain last rated date and time"
+  assert_bool "Output should\n   contain last rated date and time"
     (Str.string_match
-       (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
+       (Str.regexp ".*Last rated\n   on [0-9-]+ at [0-9:]+.*")
        !output 0)
 
 let setup_in_memory_db () =
@@ -545,8 +553,8 @@ let teardown_in_memory_db db = ignore (Sqlite3.db_close db)
 
 let populate_personal_ratings_table db =
   let insert_query =
-    "INSERT INTO PersonalRatings (eatery_name, food_item, rating, comment, \
-     date, time)\n\
+    "INSERT INTO\n\
+    \   PersonalRatings (eatery_name, food_item, rating, comment,  date, time)\n\
     \ VALUES (?, ?, ?, ?, ?, ?);"
   in
   let stmt = Sqlite3.prepare db insert_query in
@@ -579,13 +587,14 @@ let test_show_personal_ratings_with_data =
   teardown_in_memory_db db
 
 let test_rate_food_invalid_rating_value =
-  "Rate food with invalid rating value (out of range)" >:: fun _ ->
+  "Rate food with invalid rating\n   value (out of range)" >:: fun _ ->
   let db = create_in_memory_db () in
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 6 is_guest current_user eateries)
+      (rate_food db db "Pizza" "Grill House" 6 is_guest current_user true
+         eateries)
   in
   assert_equal () result
 
@@ -596,17 +605,19 @@ let test_view_food_rating_with_comments =
   let current_user = ref (Some "john_doe") in
   (* Insert a rating with a comment *)
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
+       eateries);
   (* Simulate a comment *)
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
+       eateries);
   let result =
     Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
   in
   assert_equal () result
 
 let test_view_food_rating_empty_db =
-  "View food rating when database is empty" >:: fun _ ->
+  "View food rating when database is\n   empty" >:: fun _ ->
   let db = create_in_memory_db () in
   let result =
     Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
@@ -619,7 +630,8 @@ let test_view_food_rating_no_comments =
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
+       eateries);
   let result =
     Lwt_main.run (view_food_rating db "Pizza" "Grill House" eateries)
   in
@@ -633,15 +645,16 @@ let test_sort_by_highest_rating =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
     ]
   in
 
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -657,14 +670,15 @@ let test_sort_by_highest_rating =
 
   let stmt =
     Sqlite3.prepare db
-      "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
+      "SELECT rating FROM Ratings ORDER BY rating\n   DESC LIMIT 1;"
   in
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW ->
       let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
       assert_equal (Some 5) rating
   | _ ->
-      assert_failure "Failed to retrieve the highest rating from the database"
+      assert_failure
+        "Failed to retrieve the highest rating from the\n   database"
 
 let test_sort_by_highest_rating =
   "Sort by highest rating" >:: fun _ ->
@@ -674,15 +688,16 @@ let test_sort_by_highest_rating =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
     ]
   in
 
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -698,14 +713,15 @@ let test_sort_by_highest_rating =
 
   let stmt =
     Sqlite3.prepare db
-      "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
+      "SELECT rating FROM Ratings ORDER BY rating\n   DESC LIMIT 1;"
   in
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW ->
       let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
       assert_equal (Some 5) rating
   | _ ->
-      assert_failure "Failed to retrieve the highest rating from the database"
+      assert_failure
+        "Failed to retrieve the highest rating from the\n   database"
 
 let test_sort_by_lowest_rating =
   "Sort by lowest rating" >:: fun _ ->
@@ -715,15 +731,16 @@ let test_sort_by_lowest_rating =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
     ]
   in
 
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -738,7 +755,8 @@ let test_sort_by_lowest_rating =
   Lwt_main.run (sort_by_lowest_rating db "Ratings");
 
   let stmt =
-    Sqlite3.prepare db "SELECT rating FROM Ratings ORDER BY rating ASC LIMIT 1;"
+    Sqlite3.prepare db
+      "SELECT rating FROM Ratings ORDER BY rating ASC\n   LIMIT 1;"
   in
 
   match Sqlite3.step stmt with
@@ -755,15 +773,16 @@ let test_sort_by_eatery_alphabetical =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
       ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
-      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+      ("Sushi\n   Place", "California Roll", 5, "2023-12-02", "13:00:00");
     ]
   in
 
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -776,7 +795,7 @@ let test_sort_by_eatery_alphabetical =
     insert_data;
 
   let test_query =
-    "SELECT eatery_name FROM Ratings ORDER BY eatery_name ASC LIMIT 1;"
+    "SELECT eatery_name FROM Ratings ORDER BY eatery_name ASC\n   LIMIT 1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -789,22 +808,23 @@ let test_sort_by_eatery_alphabetical =
         "Failed to retrieve the first eatery name from the database"
 
 let test_sort_by_eatery_reverse_alphabetical =
-  "Sort by eatery name alphabetically" >:: fun _ ->
+  "Sort by eatery name\n   alphabetically" >:: fun _ ->
   let db = create_in_memory_db () in
 
   let insert_data =
     [
       ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
       ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
-      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+      ("Sushi\n   Place", "California Roll", 5, "2023-12-02", "13:00:00");
     ]
   in
 
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -817,7 +837,7 @@ let test_sort_by_eatery_reverse_alphabetical =
     insert_data;
 
   let test_query =
-    "SELECT eatery_name FROM Ratings ORDER BY eatery_name DESC LIMIT 1;"
+    "SELECT eatery_name FROM Ratings ORDER BY eatery_name DESC\n   LIMIT 1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -837,7 +857,7 @@ let test_sort_by_date_asc =
     [
       ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
       ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
     ]
   in
@@ -845,8 +865,9 @@ let test_sort_by_date_asc =
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -859,8 +880,8 @@ let test_sort_by_date_asc =
     insert_data;
 
   let test_query =
-    "SELECT eatery_name, date, time FROM Ratings ORDER BY date ASC, time ASC \
-     LIMIT 1;"
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date\n\
+    \   ASC, time ASC  LIMIT 1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -868,11 +889,11 @@ let test_sort_by_date_asc =
       let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
       let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
       let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
-      assert_equal (Some "Burger Joint") first_eatery;
+      assert_equal (Some "Burger\n   Joint") first_eatery;
       assert_equal (Some "2023-12-01") first_date;
       assert_equal (Some "09:00:00") first_time;
       Lwt_main.run (sort_by_date_asc db "Ratings")
-  | _ -> assert_failure "Failed to retrieve the first row from the database"
+  | _ -> assert_failure "Failed to retrieve the first row from the\n   database"
 
 let test_sort_by_date_desc =
   "Sort by date ascending" >:: fun _ ->
@@ -882,7 +903,7 @@ let test_sort_by_date_desc =
     [
       ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
       ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
     ]
   in
@@ -890,8 +911,9 @@ let test_sort_by_date_desc =
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -904,8 +926,8 @@ let test_sort_by_date_desc =
     insert_data;
 
   let test_query =
-    "SELECT eatery_name, date, time FROM Ratings ORDER BY date DESC, time DESC \
-     LIMIT 1;"
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date\n\
+    \   DESC, time DESC  LIMIT 1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -913,11 +935,11 @@ let test_sort_by_date_desc =
       let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
       let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
       let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
-      assert_equal (Some "Burger Joint") first_eatery;
+      assert_equal (Some "Burger\n   Joint") first_eatery;
       assert_equal (Some "2023-12-01") first_date;
       assert_equal (Some "09:00:00") first_time;
       Lwt_main.run (sort_by_date_asc db "Ratings")
-  | _ -> assert_failure "Failed to retrieve the first row from the database"
+  | _ -> assert_failure "Failed to retrieve the first row from the\n   database"
 
 let test_sort_by_date_desc =
   "Sort by date descending" >:: fun _ ->
@@ -927,7 +949,7 @@ let test_sort_by_date_desc =
     [
       ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
       ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
     ]
   in
@@ -935,8 +957,9 @@ let test_sort_by_date_desc =
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -949,8 +972,8 @@ let test_sort_by_date_desc =
     insert_data;
 
   let test_query =
-    "SELECT eatery_name, date, time FROM Ratings ORDER BY date DESC, time DESC \
-     LIMIT 1;"
+    "SELECT eatery_name, date, time FROM Ratings ORDER BY date\n\
+    \   DESC, time DESC  LIMIT 1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -958,11 +981,11 @@ let test_sort_by_date_desc =
       let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
       let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
       let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
-      assert_equal (Some "Grill House") first_eatery;
+      assert_equal (Some "Grill\n   House") first_eatery;
       assert_equal (Some "2023-12-03") first_date;
       assert_equal (Some "14:00:00") first_time;
       Lwt_main.run (sort_by_date_desc db "Ratings")
-  | _ -> assert_failure "Failed to retrieve the first row from the database"
+  | _ -> assert_failure "Failed to retrieve the first row from the\n   database"
 
 let test_sort_by_food_alphabetical =
   "Sort by food alphabetical" >:: fun _ ->
@@ -972,7 +995,7 @@ let test_sort_by_food_alphabetical =
     [
       ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
       ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
     ]
   in
@@ -980,8 +1003,9 @@ let test_sort_by_food_alphabetical =
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -994,7 +1018,7 @@ let test_sort_by_food_alphabetical =
     insert_data;
 
   let test_query =
-    "SELECT food_item FROM Ratings ORDER BY food_item ASC LIMIT 1;"
+    "SELECT food_item FROM Ratings ORDER BY food_item ASC LIMIT\n   1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
@@ -1005,14 +1029,14 @@ let test_sort_by_food_alphabetical =
   | _ -> assert_failure "Failed to retrieve the first row from the database"
 
 let test_sort_by_food_reverse_alphabetical =
-  "Sort by food reverse alphabetical" >:: fun _ ->
+  "Sort by food reverse\n   alphabetical" >:: fun _ ->
   let db = create_in_memory_db () in
 
   let insert_data =
     [
       ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
       ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
+      ("Burger\n   Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
       ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
     ]
   in
@@ -1020,8 +1044,9 @@ let test_sort_by_food_reverse_alphabetical =
   List.iter
     (fun (eatery, food, rating, date, time) ->
       let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time)  \
+         VALUES\n\
+        \   (?, ?, ?, ?, ?);"
       in
       let stmt = Sqlite3.prepare db insert_query in
       Sqlite3.bind_text stmt 1 eatery |> ignore;
@@ -1034,7 +1059,7 @@ let test_sort_by_food_reverse_alphabetical =
     insert_data;
 
   let test_query =
-    "SELECT food_item FROM Ratings ORDER BY food_item DESC LIMIT 1;"
+    "SELECT food_item FROM Ratings ORDER BY food_item DESC LIMIT\n   1;"
   in
   let stmt = Sqlite3.prepare db test_query in
   match Sqlite3.step stmt with
