@@ -635,6 +635,54 @@ let test_view_food_rating_no_comments =
   in
   assert_equal () result
 
+let test_sort_by_highest_rating =
+  "Sort by highest rating" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  (* Insert test data *)
+  let insert_data =
+    [
+      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
+      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
+      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
+    ]
+  in
+
+  (* Insert data into the database *)
+  List.iter
+    (fun (eatery, food, rating, date, time) ->
+      let insert_query =
+        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
+         VALUES (?, ?, ?, ?, ?);"
+      in
+      let stmt = Sqlite3.prepare db insert_query in
+      Sqlite3.bind_text stmt 1 eatery |> ignore;
+      Sqlite3.bind_text stmt 2 food |> ignore;
+      Sqlite3.bind_int stmt 3 rating |> ignore;
+      Sqlite3.bind_text stmt 4 date |> ignore;
+      Sqlite3.bind_text stmt 5 time |> ignore;
+      ignore (Sqlite3.step stmt);
+      Sqlite3.finalize stmt |> ignore)
+    insert_data;
+
+  (* Run the sorting function *)
+  Lwt_main.run (sort_by_highest_rating db "Ratings");
+
+  (* Query the first row to check if it has the highest rating *)
+  let stmt =
+    Sqlite3.prepare db
+      "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
+  in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW ->
+      let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
+      (* Check if the highest rating is as expected *)
+      assert_equal (Some 5) rating
+  | _ ->
+      assert_failure "Failed to retrieve the highest rating from the database"
+
+let sorting_tests = "Sorting tests" >::: [ test_sort_by_highest_rating ]
+
 let ratings_tests =
   "Food Rating Tests"
   >::: [
@@ -684,6 +732,7 @@ let eatery_tests =
          test_create_eatery_invalid;
          data_tests;
          ratings_tests;
+         sorting_tests;
        ]
 
 let _ = run_test_tt_main eatery_tests
