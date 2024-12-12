@@ -109,17 +109,22 @@ let rec prompt_user_sort_3 db eateries =
 
 let rec prompt_user_rate public_db personal_db eateries =
   print_endline "\n Which number best fits your desired action? ";
-  print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza Okenshields 5)";
+  print_endline "1. Rate <food> offered by <eatery> (ex. 1 pizza 5 Okenshields)";
   print_endline
     "2. View the rating of <food> at <eatery> (ex. 2 pizza Okenshields)";
 
   print_endline "3. View your personal ratings";
   print_endline "4. Quit";
+  let eatery = ref "" in
   let action = read_line () in
   let parts = String.split_on_char ' ' action in
   match parts with
-  | [ "1"; food; eatery; rating ] -> (
+  | "1" :: food :: rating :: eatery_name -> (
       try
+        (if eatery_name <> [] then
+           let eat = String.concat " " eatery_name in
+           eatery := eat);
+
         let rating = int_of_string rating in
         if rating < 1 || rating > 5 then (
           print_endline "Rating must be between 1 and 5.";
@@ -130,13 +135,13 @@ let rec prompt_user_rate public_db personal_db eateries =
           match read_line () with
           | "y" ->
               let%lwt () =
-                rate_food public_db personal_db food eatery rating is_guest
+                rate_food public_db personal_db food !eatery rating is_guest
                   current_user true eateries
               in
               prompt_user_rate public_db personal_db eateries
           | _ ->
               let%lwt () =
-                rate_food public_db personal_db food eatery rating is_guest
+                rate_food public_db personal_db food !eatery rating is_guest
                   current_user false eateries
               in
               prompt_user_rate public_db personal_db eateries)
