@@ -515,28 +515,23 @@ let test_view_food_rating =
   assert_equal Sqlite3.Rc.DONE (Sqlite3.step stmt);
   Sqlite3.finalize stmt |> ignore;
 
-  (* Capture stdout for testing *)
   let output = ref "" in
   let old_stdout = Unix.dup Unix.stdout in
   let pipe_out, pipe_in = Unix.pipe () in
   Unix.dup2 pipe_in Unix.stdout;
   Unix.close pipe_in;
 
-  (* Run the function *)
   Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
 
-  (* Restore stdout and read captured output *) Unix.dup2 old_stdout Unix.stdout;
+  Unix.dup2 old_stdout Unix.stdout;
   let buffer = Bytes.create 1024 in
   let _ = Unix.read pipe_out buffer 0 1024 in
   output := Bytes.to_string buffer;
   Unix.close pipe_out;
 
-  (* Print captured output for debugging *)
-  Printf.printf "Captured output:\n   %s\n" !output;
+  Printf.printf "Captured output: %s\n" !output;
 
-  (* Check the output *)
-  (* Check the output *)
-  assert_bool "Output should\n   contain average rating"
+  assert_bool "Output should contain average rating"
     (Str.string_match
        (Str.regexp "The average rating for\n   Test Food at Test Eatery is 4.00")
        !output 0);
@@ -586,6 +581,75 @@ let test_show_personal_ratings_with_data =
   Lwt_main.run (show_personal_ratings db is_guest);
   teardown_in_memory_db db
 
+let test_show_public_ratings =
+  "public ratings" >:: fun _ ->
+  let db = create_in_memory_db () in
+
+  let insert_query =
+    "INSERT INTO Ratings (eatery_name, food_item, username, rating, comment, \
+     date, time) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  in
+  let insert_stmt = Sqlite3.prepare db insert_query in
+  let test_data =
+    [
+      ( "Pizza Place",
+        "Pepperoni Pizza",
+        "user1",
+        5,
+        "Great!",
+        "2024-12-01",
+        "18:00" );
+      ( "Burger Joint",
+        "Cheeseburger",
+        "user2",
+        4,
+        "Tasty!",
+        "2024-12-02",
+        "19:00" );
+      ("Pizza Place", "Veggie Pizza", "user3", 3, "Okay.", "2024-12-01", "19:30");
+      ( "Sushi Spot",
+        "California Roll",
+        "user4",
+        5,
+        "Delicious!",
+        "2024-12-03",
+        "20:00" );
+      ( "Burger Joint",
+        "Veggie Burger",
+        "user5",
+        2,
+        "Not great.",
+        "2024-12-02",
+        "20:30" );
+    ]
+  in
+  List.iter
+    (fun (name, food, user, rating, comment, date, time) ->
+      Sqlite3.bind_text insert_stmt 1 name |> ignore;
+      Sqlite3.bind_text insert_stmt 2 food |> ignore;
+      Sqlite3.bind_text insert_stmt 3 user |> ignore;
+      Sqlite3.bind_int insert_stmt 4 rating |> ignore;
+      Sqlite3.bind_text insert_stmt 5 comment |> ignore;
+      Sqlite3.bind_text insert_stmt 6 date |> ignore;
+      Sqlite3.bind_text insert_stmt 7 time |> ignore;
+      ignore (Sqlite3.step insert_stmt);
+      Sqlite3.reset insert_stmt |> ignore)
+    test_data;
+
+  Sqlite3.finalize insert_stmt |> ignore;
+
+  let food_item = "Pepperoni Pizza" in
+  let choices = [ "1"; "2"; "3"; "4"; "5"; "6" ] in
+
+  List.iter
+    (fun choice ->
+      print_endline ("Testing with choice: " ^ choice);
+      show_public_ratings db food_item choice)
+    choices;
+
+  print_endline "Testing with non-existent food item:";
+  show_public_ratings db "Nonexistent Food" "1"
+
 let test_rate_food_invalid_rating_value =
   "Rate food with invalid rating\n   value (out of range)" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -603,11 +667,8 @@ let test_view_food_rating_with_comments =
   let db = create_in_memory_db () in
   let is_guest = ref false in
   let current_user = ref (Some "john_doe") in
-  (* Insert a rating with a comment *)
   Lwt_main.run
-    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
-       eateries);
-  (* Simulate a comment *)
+    (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries);
   Lwt_main.run
     (rate_food db db "Pizza" "Grill House" 4 is_guest current_user false
        eateries);
@@ -1091,6 +1152,7 @@ let ratings_tests =
          test_rate_food;
          test_rate_food_invalid_rating_value;
          test_show_personal_ratings_with_data;
+         test_show_public_ratings;
        ]
 
 let data_tests =
