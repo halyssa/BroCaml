@@ -19,9 +19,12 @@ val view_food_rating :
     [food] at [eatery] from [public_db]. *)
 
 val show_personal_ratings : Sqlite3.db -> string -> bool ref -> unit Lwt.t
-(** [show_personal_ratings db username is_guest] displays personal ratings from [db] for [username] if
-    not a guest. *)
+(** [show_personal_ratings db username is_guest] displays personal ratings from
+    [db] for [username] if not a guest. *)
+
 val show_public_ratings : Sqlite3.db -> Sqlite3.header -> Sqlite3.header -> unit
+(** [show_public_ratings db username is_guest] displays public ratings from
+    [db].*)
 
 val sort_by_highest_rating : Sqlite3.db -> string -> unit Lwt.t
 (** [sort_by_highest_rating db table] sorts and displays ratings from [table] in

@@ -6,7 +6,6 @@ type eatery = {
 let get_name eatery = eatery.name
 let get_menu eatery = eatery.menu
 
-(* creates a new eatery *)
 let create_eatery name menu =
   if String.trim name = "" then
     raise (Invalid_argument "Eatery name cannot be empty.")
@@ -14,17 +13,14 @@ let create_eatery name menu =
     raise (Invalid_argument "Menu cannot be empty.")
   else { name; menu }
 
-(* helper for contains: checks if a food item is in an eatery*)
 let contains_helper food eatery =
   List.exists
     (fun item -> String.lowercase_ascii item = String.lowercase_ascii food)
     eatery.menu
 
-(* checks if food is found in any of the eateries *)
 let contains (food : string) (eateries : eatery list) : bool =
   List.exists (fun eatery -> contains_helper food eatery) eateries
 
-(* search and return eateries with the desired food*)
 let search_food food eateries =
   List.fold_right
     (fun eatery acc ->

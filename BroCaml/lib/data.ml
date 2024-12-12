@@ -11,7 +11,6 @@ let fetch_json url =
     let%lwt response, body = Client.get (Uri.of_string url) in
     let%lwt body_string = Cohttp_lwt.Body.to_string body in
     let json = Yojson.Safe.from_string body_string in
-    (* print_endline "Successfully fetched and parsed JSON."; *)
     Lwt.return json
   with e ->
     Lwt.fail_with
@@ -26,7 +25,7 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
       |> Yojson.Safe.Util.member "data"
       |> Yojson.Safe.Util.member "eateries"
     with
-    | `Null -> Lwt.return [] (* Return an empty list if "eateries" is null *)
+    | `Null -> Lwt.return []
     | eateries_json ->
         let eateries =
           eateries_json |> Yojson.Safe.Util.to_list
@@ -113,7 +112,6 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
                                        []))
                           []
                    in
-                   (* Default to empty list if menu is empty *)
                    if List.length menu_from_events > 0 then menu_from_events
                    else if List.length dining_items > 0 then dining_items
                    else
@@ -128,7 +126,6 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
                                 |> Yojson.Safe.Util.member "name"
                                 |> Yojson.Safe.Util.to_string)
                  in
-                 (* Ensure a non-empty list is passed to create_eatery *)
                  let safe_menu =
                    if List.length menu_items = 0 then [ "No menu available" ]
                    else menu_items
