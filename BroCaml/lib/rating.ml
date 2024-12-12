@@ -307,37 +307,26 @@ let show_public_ratings db food choice =
     Sqlite3.finalize stmt |> ignore;
     raise exn
 (**[print_results] is a helper function to print the results from sorting a database *)
-let rec print_results stmt =
-  match Sqlite3.step stmt with
-  | Sqlite3.Rc.ROW ->
-      let eatery_name =
-        Sqlite3.column stmt 1 |> Sqlite3.Data.to_string
-        |> Option.value ~default:"NULL"
-      in
-      let food_item =
-        Sqlite3.column stmt 2 |> Sqlite3.Data.to_string
-        |> Option.value ~default:"NULL"
-      in
-      let rating =
-        Sqlite3.column stmt 3 |> Sqlite3.Data.to_int |> Option.value ~default:0
-      in
-      let date =
-        Sqlite3.column stmt 4 |> Sqlite3.Data.to_string
-        |> Option.value ~default:"NULL"
-      in
-      let time =
-        Sqlite3.column stmt 5 |> Sqlite3.Data.to_string
-        |> Option.value ~default:"NULL"
-      in
-      Printf.printf "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
-        eatery_name food_item rating date time;
-      print_results stmt (* Recur for the next row *)
-  | Sqlite3.Rc.DONE -> () (* End of rows, stop recursion *)
-  | _ -> print_endline "Error processing query results."
+let print_results stmt =
+  let rec print_rows () =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+        let eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string_exn in
+        let food = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string_exn in
+        let rating = Sqlite3.column stmt 2 |> Sqlite3.Data.to_int_exn in
+        let date = Sqlite3.column stmt 3 |> Sqlite3.Data.to_string_exn in
+        let time = Sqlite3.column stmt 4 |> Sqlite3.Data.to_string_exn in
+        Printf.printf "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
+          eatery food rating date time;
+        print_rows ()
+    | _ -> ()
+  in
+  print_rows ()
+
 
 (* sorting by rating *)
 let sort_by_highest_rating db table =
-  let query = Printf.sprintf "SELECT * FROM %s ORDER BY rating DESC;" table in
+  let query = Printf.sprintf "SELECT eatery_name, food_item, rating, date, time FROM %s ORDER BY rating DESC;" table in
   let stmt = Sqlite3.prepare db query in
   Lwt.finalize
     (fun () ->
