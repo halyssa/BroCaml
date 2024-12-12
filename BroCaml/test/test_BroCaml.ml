@@ -408,6 +408,7 @@ let create_in_memory_db () =
     \              food_item TEXT,\n\
     \              username TEXT,\n\
     \              rating INTEGER,\n\
+    \              comment TEXT, \n\
     \              date TEXT,\n\
     \              time TEXT,\n\
     \              PRIMARY KEY (eatery_name, food_item, username, date)\n\
@@ -418,7 +419,8 @@ let create_in_memory_db () =
     \              eatery_name TEXT,\n\
     \              food_item TEXT,\n\
     \              rating INTEGER,\n\
-    \              date TEXT,\n\
+    \              comment TEXT, \n\n\
+    \                  date TEXT,\n\
     \              time TEXT,\n\
     \              PRIMARY KEY (eatery_name, food_item, date)\n\
     \            );"
@@ -522,7 +524,7 @@ let test_rate_food =
   | _ -> assert_failure "Rating not found in public database"
 
 let test_view_food_rating =
-  "test view food rating" >:: fun _ ->
+  "view food rating" >:: fun _ ->
   let public_db = create_in_memory_db () in
   let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
 
