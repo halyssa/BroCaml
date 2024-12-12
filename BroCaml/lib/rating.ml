@@ -306,7 +306,7 @@ let show_public_ratings db food choice =
   with exn ->
     Sqlite3.finalize stmt |> ignore;
     raise exn
-
+(**[print_results] is a helper function to print the results from sorting a database *)
 let rec print_results stmt =
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW ->

@@ -1,16 +1,11 @@
 open User
 open Cohttp_lwt_unix
 
-(* type eatery = { name : string; menu : string list; } *)
-(** type [eatery] stores a string [name] and string list [menu]*)
+type eatery = {
+  name : string;
+  menu : string list;
+}
 
-(** [fetch_json] is the json of [url]. Raises:
-    - Fails with "HTTP request failed with error" if the HTTP request is
-      unsuccessful.
-    - Fails with "JSON parsing error" if the response body cannot be parsed as
-      JSON.
-    - Fails with "Unexpected error: <msg>" if an unexpected error occurs during
-      the request or parsing.*)
 let fetch_json url =
   try%lwt
     let%lwt response, body = Client.get (Uri.of_string url) in
@@ -24,8 +19,6 @@ let fetch_json url =
     [@coverage off]
 (* coverage off because branch will not be reached since url is always valid *)
 
-(** [parse_eateries] parses the given JSON object [json] and returns an Lwt list
-    of eateries. *)
 let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
   try
     match
@@ -147,8 +140,6 @@ let parse_eateries (json : Yojson.Safe.t) : User.eatery list Lwt.t =
     print_endline ("Unexpected error in parse_eateries: " ^ Printexc.to_string e);
     Lwt.return []
 
-(** [get_data] returns a Lwt list of eateries from
-    "https://now.dining.cornell.edu/api/1.0/dining/eateries.json" *)
 let get_data () : User.eatery list Lwt.t =
   let url = "https://now.dining.cornell.edu/api/1.0/dining/eateries.json" in
   try%lwt
