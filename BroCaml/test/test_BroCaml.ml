@@ -14,6 +14,8 @@ let eatery2 = create_eatery "Deli Delight" [ "Sandwich"; "Soup"; "Juice" ]
 let eatery3 = create_eatery "Gourmet Grill" [ "Burger"; "Fries"; "Salad" ]
 let eateries = [ eatery1; eatery2; eatery3 ]
 
+(** [test_create_eatery_invalid] tests the [create_eatery] function with invalid
+    inputs. Ensures the function raises invalid arguments. *)
 let test_create_eatery_invalid =
   "empty test"
   >::: [
@@ -25,6 +27,8 @@ let test_create_eatery_invalid =
                create_eatery "Pizza Place" []) );
        ]
 
+(** [contains_helper_test] tests the [contains] helper function to check if a
+    given food item exists in any eatery's menu *)
 let contains_helper_test =
   "contains helper tests"
   >::: [
@@ -48,7 +52,8 @@ let contains_helper_test =
            assert_bool "Food with special characters should be found"
              (contains "Chicken & Waffles" [ eatery_special_chars ]) );
        ]
-
+(** [contains_tests] tests the [contains] function to verify its behavior when checking
+    for the presence of food items in eatery menus. *)
 let contains_tests =
   "contains function tests"
   >::: [
@@ -63,6 +68,9 @@ let contains_tests =
              (not (contains "Pizza" eateries)) );
        ]
 
+(** [search_test_helper food eateries expected] creates a unit test for the 
+    [search_food] function. It checks if searching for [food] in [eateries] 
+    produces the expected result [expected]. *)
 let search_test_helper food eateries expected =
   "" >:: fun _ ->
   let result = search_food food eateries in
@@ -78,11 +86,17 @@ let search_food_tests =
 
 let eatery_duplicate_food = create_eatery "Duplicate" [ "Burger"; "Burger" ]
 
+(** [contains_duplicate_food_test] tests the [contains_helper] function to check if 
+    it correctly identifies a food item in an eatery menu that contains 
+    duplicate entries. *)
 let contains_duplicate_food_test =
   "duplicate food in menu" >:: fun _ ->
   assert_bool "Burger should be found in Duplicate's menu"
     (contains_helper "Burger" eatery_duplicate_food)
 
+(** [test_parse_eateries_empty_eateries] tests the [parse_eateries] function to ensure
+it correctly handles JSON input where the "eateries" field is null, resulting in
+an empty list of eateries. *)
 let test_parse_eateries_empty_eateries _ =
   Lwt_main.run
     (let json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ] in
@@ -90,6 +104,9 @@ let test_parse_eateries_empty_eateries _ =
      assert_equal (List.length result) 0;
      Lwt.return_unit)
 
+(** [test_parse_eateries_missing_eateries] tests the [parse_eateries] function to ensure
+it correctly handles JSON input where the "eateries" field is missing, resulting in
+an empty list of eateries. *)
 let test_parse_eateries_missing_eateries _ =
   Lwt_main.run
     (let json = `Assoc [ ("data", `Assoc []) ] in
@@ -97,6 +114,8 @@ let test_parse_eateries_missing_eateries _ =
      assert_equal (List.length result) 0;
      Lwt.return_unit)
 
+(** [test_get_data_valid] tests the [get_data] function to ensure it successfully 
+    retrieves a non-empty list of eateries. *)
 let test_get_data_valid _ =
   Lwt_main.run
     (let%lwt result = get_data () in
@@ -115,6 +134,12 @@ let parse_eateries_tests =
          >:: test_parse_eateries_missing_eateries;
        ]
 
+(** [setup_test_db] initializes an in-memory SQLite database for testing purposes.
+    It creates a table with the following schema:
+    - [id]: An auto-incrementing primary key.
+    - [username]: A unique, non-null text field for storing usernames.
+    - [password_hash]: A non-null text field for storing hashed passwords.
+    Returns the initialized database instance. *)
 let setup_test_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_table_query =
@@ -124,6 +149,8 @@ let setup_test_db () =
   ignore (Sqlite3.exec db create_table_query);
   db
 
+(** [test_user_exists] tests the [user_exists] function to verify that it correctly
+  checks the existence of a user in the [Users] table of the test database after adding one. *)
 let test_user_exists _ =
   let db = setup_test_db () in
   let insert_query =
@@ -135,6 +162,8 @@ let test_user_exists _ =
   assert_bool "User should exist" (user_exists db "test_user");
   assert_bool "User should not exist" (not (user_exists db "non_existent_user"))
 
+(** [test_validate_user] tests the [validate_user] function to ensure it correctly 
+    validates user credentials in the [Users] table of the test database *)
 let test_validate_user _ =
   let db = setup_test_db () in
   let insert_query =
@@ -152,6 +181,8 @@ let test_validate_user _ =
   let result = Lwt_main.run (validate_user db "non_existent_user" "hash123") in
   assert_bool "Validation should fail for non-existent user" (not result)
 
+(** [test_validate_special_chars] tests the [validate_user] function to ensure it correctly 
+    handles user credentials with special characters in the username. *)
 let test_validate_special_chars _ =
   let db = setup_test_db () in
   let insert_query =
@@ -175,6 +206,8 @@ let finalize_wrapper stmt _db =
       failwith "Error creating user: UNIQUE constraint failed: Users.username"
   | rc -> failwith ("Failed to finalize statement: " ^ Sqlite3.Rc.to_string rc)
 
+(** [test_create_user] tests the [create_user] function to ensure it correctly creates a user 
+    in the [Users] table of the test database and handles errors properly. *)
 let test_create_user _ =
   let db = setup_test_db () in
 
@@ -198,6 +231,8 @@ let test_create_user _ =
 
   assert_equal 1 count
 
+(** [test_connect_db_checked] tests the [connect_db_checked] function to ensure it correctly 
+    handles database connections by verifying that the function successfully connects to an existing database file and ensuring the function raises a [Failure] when attempting to connect to a non-existent database file. *)
 let test_connect_db_checked _ =
   (* Test case 1: Database file exists *)
   let existing_db = Filename.temp_file "test_db" ".sqlite" in
@@ -280,11 +315,16 @@ let no_menu_events_json =
 let invalid_json = `Assoc [ ("invalid_key", `String "Invalid") ]
 let failing_url = "http://invalid-url.test"
 
+(** [test_parse_null_eateries] tests the [parse_eateries] function to ensure it correctly 
+    handles the case where the input JSON contains a null value for eateries. The test 
+    verifies that the function returns an empty list when parsing such input. *)
 let test_parse_null_eateries _ =
   Lwt_main.run
     ( parse_eateries null_eateries_json >|= fun eateries ->
       assert_equal [] eateries )
 
+(** [test_parse_no_menu_items] tests the [parse_eateries] function to ensure it correctly 
+    handles the case where eateries have no menu items. *)
 let test_parse_no_menu_items _ =
   Lwt_main.run
     ( parse_eateries no_menu_items_json >|= fun eateries ->
@@ -292,6 +332,8 @@ let test_parse_no_menu_items _ =
       assert_equal [ [ "Italian" ] ] (List.map (fun e -> get_menu e) eateries)
     )
 
+(** [test_parse_no_menu_events] tests the [parse_eateries] function to ensure it correctly 
+    handles the case where eateries have no menu events. *)
 let test_parse_no_menu_events _ =
   Lwt_main.run
     ( parse_eateries no_menu_events_json >|= fun eateries ->
@@ -300,6 +342,7 @@ let test_parse_no_menu_events _ =
         [ [ "No menu available" ] ]
         (List.map (fun e -> get_menu e) eateries) )
 
+(** [test_fetch_invalid_json] tests the behavior of the function handling invalid JSON input. *)
 let test_fetch_invalid_json _ =
   Lwt_main.run
     (Lwt.catch
@@ -312,6 +355,8 @@ let test_fetch_invalid_json _ =
              Lwt.return ()
          | _ -> assert_failure "Unexpected exception"))
 
+(** [test_parse_eateries_valid_json] tests the [parse_eateries] function to ensure it correctly 
+    parses a valid JSON structure containing eateries. *)
 let test_parse_eateries_valid_json _ =
   Lwt_main.run
     (let json =
@@ -337,6 +382,7 @@ let test_parse_eateries_valid_json _ =
      assert_equal (List.length eateries) 1;
      Lwt.return ())
 
+(** [test_fetch_failing_url] tests the behavior of the [fetch_json] function when an HTTP request fails. *)
 let test_fetch_failing_url _ =
   let mock_fetch_json url =
     Lwt.pause () >>= fun () ->
@@ -353,6 +399,8 @@ let test_fetch_failing_url _ =
              Lwt.return ()
          | _ -> assert_failure "Unexpected exception"))
 
+(** [test_get_data] tests the [get_data] function to ensure it correctly retrieves a non-empty list 
+    of eateries. *)
 let test_get_data _ =
   Lwt_main.run
     (let timeout = Lwt_unix.sleep 0.5 >>= fun () -> Lwt.return () in
@@ -369,6 +417,8 @@ let get_data fetch_json =
   let%lwt response = fetch_json () in
   Lwt.return response
 
+(** [test_get_data_http_failure] tests the [get_data] function to ensure it correctly handles 
+    an HTTP failure when fetching data. *)
 let test_get_data_http_failure _ =
   let mock_fetch_json _ = Lwt.fail (Failure "HTTP request failed with error") in
   Lwt_main.run
@@ -383,6 +433,8 @@ let test_get_data_http_failure _ =
              Lwt.return ()
          | _ -> assert_failure "Expected fetch_json to fail"))
 
+(** [test_get_data_json_parsing_failure] tests the [get_data] function to ensure it correctly handles 
+    a JSON parsing failure when fetching data. *)
 let test_get_data_json_parsing_failure _ =
   let mock_fetch_json _ = Lwt.fail (Failure "JSON parsing error") in
   Lwt_main.run
@@ -397,6 +449,8 @@ let test_get_data_json_parsing_failure _ =
              Lwt.return ()
          | _ -> assert_failure "Expected fetch_json to fail"))
 
+(** [test_get_data_unexpected_failure] tests the [get_data] function to ensure it correctly handles 
+    an unexpected failure when fetching data. *)
 let test_get_data_unexpected_failure _ =
   let mock_fetch_json _ = Lwt.fail (Failure "Unexpected error") in
   Lwt_main.run
@@ -411,6 +465,9 @@ let test_get_data_unexpected_failure _ =
              Lwt.return ()
          | _ -> assert_failure "Expected fetch_json to fail"))
 
+(** [create_in_memory_db] creates an in-memory SQLite database for testing purposes. The function creates a [Ratings] table with columns for [eatery_name], [food_item], [username], [rating], [comment], 
+[date], and [time], creates a [PersonalRatings] table with columns for [eatery_name], [food_item], [rating], [comment], 
+[date], and [time], where the primary key is a combination of [eatery_name], [food_item], and [date], and returns the initialized database instance. *)
 let create_in_memory_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_ratings_table_query =
@@ -440,6 +497,7 @@ let create_in_memory_db () =
   ignore (Sqlite3.exec db create_personal_ratings_table_query);
   db
 
+(** [test_view_food_rating_no_ratings] tests the [view_food_rating] function when no ratings exist for a given food item at an eatery *)
 let test_view_food_rating_no_ratings =
   "View food rating when no ratings exist" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -448,6 +506,7 @@ let test_view_food_rating_no_ratings =
   in
   assert_equal () result
 
+(** [test_rate_food_as_guest] tests the [rate_food] function when a guest user rates food. *)
 let test_rate_food_as_guest =
   "Rate food as guest" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -459,6 +518,7 @@ let test_rate_food_as_guest =
   in
   assert_equal () result
 
+(** [test_rate_food] tests the [rate_food] function when a registered user rates food. *)
 let test_rate_food =
   "food rating" >:: fun _ ->
   let public_db = create_in_memory_db () in
@@ -487,6 +547,8 @@ let test_rate_food =
       | None -> assert_failure "Rating is NULL")
   | _ -> assert_failure "Rating not found in public database"
 
+(** [test_view_food_rating] verifies the functionality of the [view_food_rating] to ensure that it correctly displays the average rating 
+    and the date/time of the last rating for a given food item at a specified eatery. *)
 let test_view_food_rating =
   "view food rating" >:: fun _ ->
   let public_db = create_in_memory_db () in
@@ -531,12 +593,17 @@ let test_view_food_rating =
        (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
        !output 0)
 
+(** [setup_in_memory_db] initializes a new in-memory SQLite database. *)
 let setup_in_memory_db () =
   let db = create_in_memory_db () in
   db
 
+(** [teardown_in_memory_db db] closes the in-memory SQLite database. *)
 let teardown_in_memory_db db = ignore (Sqlite3.db_close db)
 
+(** [populate_personal_ratings_table db] populates the "PersonalRatings" table in the given database [db] with 
+    predefined sample data. The data consists of ratings for different food items from various eateries, along with 
+    associated comments, dates, and times. *)
 let populate_personal_ratings_table db =
   let insert_query =
     "INSERT INTO PersonalRatings (eatery_name, food_item, rating, comment, \
@@ -564,6 +631,8 @@ let populate_personal_ratings_table db =
     rows;
   ignore (Sqlite3.finalize stmt)
 
+(** [test_show_personal_ratings_with_data] tests the [show_personal_ratings] function by simulating the retrieval of
+    personal ratings data for a logged-in user from the database. *)
 let test_show_personal_ratings_with_data =
   "personal ratings" >:: fun _ ->
   let db = setup_in_memory_db () in
@@ -572,6 +641,8 @@ let test_show_personal_ratings_with_data =
   Lwt_main.run (show_personal_ratings db is_guest);
   teardown_in_memory_db db
 
+(** [test_show_public_ratings] tests the [show_public_ratings] function by simulating the retrieval of public
+    ratings for a specific food item from the database. *)
 let test_show_public_ratings =
   "public ratings" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -641,6 +712,8 @@ let test_show_public_ratings =
   print_endline "Testing with non-existent food item:";
   show_public_ratings db "Nonexistent Food" "1"
 
+(** [test_rate_food_invalid_rating_value] tests the [rate_food] function when an invalid rating value 
+  (out of range) is provided. *)
 let test_rate_food_invalid_rating_value =
   "Rate food with invalid rating value (out of range)" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -652,6 +725,8 @@ let test_rate_food_invalid_rating_value =
   in
   assert_equal () result
 
+(** [test_view_food_rating_with_comments] tests the [view_food_rating] function when there are ratings 
+    with multiple comments for the same food item. *)
 let test_view_food_rating_with_comments =
   "View food rating with comments" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -666,6 +741,7 @@ let test_view_food_rating_with_comments =
   in
   assert_equal () result
 
+(** [test_view_food_rating_empty_db] tests the [view_food_rating] function when the database is empty. *)
 let test_view_food_rating_empty_db =
   "View food rating when database is empty" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -674,6 +750,8 @@ let test_view_food_rating_empty_db =
   in
   assert_equal () result
 
+(** [test_view_food_rating_no_comments] tests the [view_food_rating] function when a food item has been rated 
+    but no comment has been provided. *)
 let test_view_food_rating_no_comments =
   "View food rating with no comments" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -686,6 +764,8 @@ let test_view_food_rating_no_comments =
   in
   assert_equal () result
 
+(** [test_sort_by_highest_rating] tests the [sort_by_highest_rating] function to ensure that ratings are
+    sorted correctly in descending order, with the highest rating appearing first. *)
 let test_sort_by_highest_rating =
   "Sort by highest rating" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -727,47 +807,8 @@ let test_sort_by_highest_rating =
   | _ ->
       assert_failure "Failed to retrieve the highest rating from the database"
 
-let test_sort_by_highest_rating =
-  "Sort by highest rating" >:: fun _ ->
-  let db = create_in_memory_db () in
-
-  let insert_data =
-    [
-      ("Grill House", "Pizza", 4, "2023-12-01", "12:00:00");
-      ("Sushi Place", "California Roll", 5, "2023-12-02", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-03", "14:00:00");
-    ]
-  in
-
-  List.iter
-    (fun (eatery, food, rating, date, time) ->
-      let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
-      in
-      let stmt = Sqlite3.prepare db insert_query in
-      Sqlite3.bind_text stmt 1 eatery |> ignore;
-      Sqlite3.bind_text stmt 2 food |> ignore;
-      Sqlite3.bind_int stmt 3 rating |> ignore;
-      Sqlite3.bind_text stmt 4 date |> ignore;
-      Sqlite3.bind_text stmt 5 time |> ignore;
-      ignore (Sqlite3.step stmt);
-      Sqlite3.finalize stmt |> ignore)
-    insert_data;
-
-  Lwt_main.run (sort_by_highest_rating db "Ratings");
-
-  let stmt =
-    Sqlite3.prepare db
-      "SELECT rating FROM Ratings ORDER BY rating DESC LIMIT 1;"
-  in
-  match Sqlite3.step stmt with
-  | Sqlite3.Rc.ROW ->
-      let rating = Sqlite3.column stmt 0 |> Sqlite3.Data.to_int in
-      assert_equal (Some 5) rating
-  | _ ->
-      assert_failure "Failed to retrieve the highest rating from the database"
-
+(** [test_sort_by_lowest_rating] tests the [sort_by_lowest_rating] function to ensure that ratings are
+    sorted correctly in ascending order, with the lowest rating appearing first. *)
 let test_sort_by_lowest_rating =
   "Sort by lowest rating" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -808,6 +849,8 @@ let test_sort_by_lowest_rating =
       assert_equal (Some 3) rating
   | _ -> assert_failure "Failed to retrieve the lowest rating from the database"
 
+(** [test_sort_by_eatery_alphabetical] tests the [sort_by_eatery_alphabetical] function,
+    ensuring that eateries are sorted in alphabetical order. *)
 let test_sort_by_eatery_alphabetical =
   "Sort by eatery name alphabetically" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -849,6 +892,8 @@ let test_sort_by_eatery_alphabetical =
       assert_failure
         "Failed to retrieve the first eatery name from the database"
 
+(** [test_sort_by_eatery_reverse_alphabetical] tests the [sort_by_eatery_reverse_alphabetical] function,
+    ensuring that eateries are sorted in reverse alphabetical order. *)
 let test_sort_by_eatery_reverse_alphabetical =
   "Sort by eatery name alphabetically" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -890,6 +935,8 @@ let test_sort_by_eatery_reverse_alphabetical =
       assert_failure
         "Failed to retrieve the first eatery name from the database"
 
+(** [test_sort_by_date_asc] tests the [sort_by_date_asc] function to ensure that ratings are sorted
+    by date in ascending order. *)
 let test_sort_by_date_asc =
   "Sort by date ascending" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -935,6 +982,8 @@ let test_sort_by_date_asc =
       Lwt_main.run (sort_by_date_asc db "Ratings")
   | _ -> assert_failure "Failed to retrieve the first row from the database"
 
+(** [test_sort_by_date_desc] tests the [sort_by_date_desc] function to ensure that ratings are sorted
+    by date in descending order. *)
 let test_sort_by_date_desc =
   "Sort by date ascending" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -980,51 +1029,8 @@ let test_sort_by_date_desc =
       Lwt_main.run (sort_by_date_asc db "Ratings")
   | _ -> assert_failure "Failed to retrieve the first row from the database"
 
-let test_sort_by_date_desc =
-  "Sort by date descending" >:: fun _ ->
-  let db = create_in_memory_db () in
-
-  let insert_data =
-    [
-      ("Grill House", "Pizza", 4, "2023-12-03", "14:00:00");
-      ("Sushi Place", "California Roll", 5, "2023-12-01", "13:00:00");
-      ("Burger Joint", "Cheeseburger", 3, "2023-12-01", "09:00:00");
-      ("Taco Stand", "Burrito", 4, "2023-12-02", "12:00:00");
-    ]
-  in
-
-  List.iter
-    (fun (eatery, food, rating, date, time) ->
-      let insert_query =
-        "INSERT INTO Ratings (eatery_name, food_item, rating, date, time) \
-         VALUES (?, ?, ?, ?, ?);"
-      in
-      let stmt = Sqlite3.prepare db insert_query in
-      Sqlite3.bind_text stmt 1 eatery |> ignore;
-      Sqlite3.bind_text stmt 2 food |> ignore;
-      Sqlite3.bind_int stmt 3 rating |> ignore;
-      Sqlite3.bind_text stmt 4 date |> ignore;
-      Sqlite3.bind_text stmt 5 time |> ignore;
-      ignore (Sqlite3.step stmt);
-      Sqlite3.finalize stmt |> ignore)
-    insert_data;
-
-  let test_query =
-    "SELECT eatery_name, date, time FROM Ratings ORDER BY date DESC, time DESC \
-     LIMIT 1;"
-  in
-  let stmt = Sqlite3.prepare db test_query in
-  match Sqlite3.step stmt with
-  | Sqlite3.Rc.ROW ->
-      let first_eatery = Sqlite3.column stmt 0 |> Sqlite3.Data.to_string in
-      let first_date = Sqlite3.column stmt 1 |> Sqlite3.Data.to_string in
-      let first_time = Sqlite3.column stmt 2 |> Sqlite3.Data.to_string in
-      assert_equal (Some "Grill House") first_eatery;
-      assert_equal (Some "2023-12-03") first_date;
-      assert_equal (Some "14:00:00") first_time;
-      Lwt_main.run (sort_by_date_desc db "Ratings")
-  | _ -> assert_failure "Failed to retrieve the first row from the database"
-
+(** [test_sort_by_food_alphabetical] tests the [sort_by_food_alphabetical] function,
+    ensuring that food items are sorted in alphabetical order. *)
 let test_sort_by_food_alphabetical =
   "Sort by food alphabetical" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -1065,6 +1071,8 @@ let test_sort_by_food_alphabetical =
       Lwt_main.run (sort_by_food_alphabetical db "Ratings")
   | _ -> assert_failure "Failed to retrieve the first row from the database"
 
+(** [test_sort_by_food_reverse_alphabetical] tests the [sort_by_food_reverse_alphabetical] function,
+    ensuring that food items are sorted in reverse alphabetical order. *)
 let test_sort_by_food_reverse_alphabetical =
   "Sort by food reverse alphabetical" >:: fun _ ->
   let db = create_in_memory_db () in
