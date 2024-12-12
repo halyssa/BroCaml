@@ -201,7 +201,18 @@ let test_create_user _ =
 
   assert_equal 1 count
 
-let mock_finalize result _stmt _db = Lwt.return result
+let test_connect_db_checked _ =
+  (* Test case 1: Database file exists *)
+  let existing_db = Filename.temp_file "test_db" ".sqlite" in
+  let db = connect_db_checked existing_db in
+  assert_bool "Database connection should be open" (db_close db);
+  Sys.remove existing_db;
+
+  (* Test case 2: Database file doesn't exist *)
+  let non_existing_db = "/tmp/non_existing_db.sqlite" in
+  assert_raises
+    (Failure ("Database file not found: " ^ non_existing_db))
+    (fun () -> connect_db_checked non_existing_db)
 
 let login_tests =
   "login tests"
@@ -210,6 +221,7 @@ let login_tests =
          "test_validate_user" >:: test_validate_user;
          "test_validate_special_chars" >:: test_validate_special_chars;
          "test_create_user" >:: test_create_user;
+         "test_connect_db_checked" >:: test_connect_db_checked;
        ]
 
 let null_eateries_json = `Assoc [ ("data", `Assoc [ ("eateries", `Null) ]) ]
