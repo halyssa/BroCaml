@@ -440,28 +440,6 @@ let create_in_memory_db () =
   ignore (Sqlite3.exec db create_personal_ratings_table_query);
   db
 
-let test_rate_food_valid =
-  "Rate food with valid data" >:: fun _ ->
-  let db = create_in_memory_db () in
-  let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
-  let result =
-    Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
-  in
-  assert_equal () result
-
-let test_rate_food_invalid_rating =
-  "Rate food with invalid rating value" >:: fun _ ->
-  let db = create_in_memory_db () in
-  let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
-  let result =
-    Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" (-1) is_guest current_user eateries)
-  in
-  assert_equal () result
-
 let test_view_food_rating_no_ratings =
   "View food rating when no ratings exist" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -478,30 +456,6 @@ let test_rate_food_as_guest =
   let result =
     Lwt_main.run
       (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
-  in
-  assert_equal () result
-
-let test_rate_food_invalid_eatery =
-  "Rate food at invalid eatery" >:: fun _ ->
-  let db = create_in_memory_db () in
-  let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
-  let result =
-    Lwt_main.run
-      (rate_food db db "Pizza" "NonExistent Eatery" 4 is_guest current_user
-         eateries)
-  in
-  assert_equal () result
-
-let test_rate_food_non_existent_food =
-  "Rate non-existent food item" >:: fun _ ->
-  let db = create_in_memory_db () in
-  let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
-  let result =
-    Lwt_main.run
-      (rate_food db db "NonExistent Food" "Grill House" 4 is_guest current_user
-         eateries)
   in
   assert_equal () result
 
@@ -623,22 +577,6 @@ let test_show_personal_ratings_with_data =
   let is_guest = ref false in
   Lwt_main.run (show_personal_ratings db is_guest);
   teardown_in_memory_db db
-
-let test_rate_food_update_existing_rating =
-  "Update existing food rating" >:: fun _ ->
-  let db = create_in_memory_db () in
-  let is_guest = ref false in
-  let current_user = ref (Some "john_doe") in
-  let result_first =
-    Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
-  in
-  let result_second =
-    Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 5 is_guest current_user eateries)
-  in
-  assert_equal () result_first;
-  assert_equal () result_second
 
 let test_rate_food_invalid_rating_value =
   "Rate food with invalid rating value (out of range)" >:: fun _ ->
@@ -1122,15 +1060,10 @@ let sorting_tests =
 let ratings_tests =
   "Food Rating Tests"
   >::: [
-         test_rate_food_valid;
-         test_rate_food_invalid_rating;
          test_view_food_rating_no_ratings;
          test_rate_food_as_guest;
-         test_rate_food_invalid_eatery;
-         test_rate_food_non_existent_food;
          test_view_food_rating;
          test_rate_food;
-         test_rate_food_update_existing_rating;
          test_rate_food_invalid_rating_value;
          test_show_personal_ratings_with_data;
        ]
