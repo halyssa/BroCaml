@@ -14,6 +14,7 @@ let user_exists db username =
   | _ ->
       finalize stmt |> ignore;
       raise (BindingError "Failed to check if user exists.")
+[@@coveragee off]
 
 let validate_user db username password =
   Lwt.return

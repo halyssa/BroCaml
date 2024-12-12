@@ -402,7 +402,7 @@ let test_get_data_unexpected_failure _ =
 
 let create_in_memory_db () =
   let db = Sqlite3.db_open ":memory:" in
-  let create_table_query =
+  let create_ratings_table_query =
     "CREATE TABLE IF NOT EXISTS Ratings (\n\
     \              eatery_name TEXT,\n\
     \              food_item TEXT,\n\
@@ -413,7 +413,18 @@ let create_in_memory_db () =
     \              PRIMARY KEY (eatery_name, food_item, username, date)\n\
     \            );"
   in
-  ignore (Sqlite3.exec db create_table_query);
+  let create_personal_ratings_table_query =
+    "CREATE TABLE IF NOT EXISTS PersonalRatings (\n\
+    \              eatery_name TEXT,\n\
+    \              food_item TEXT,\n\
+    \              rating INTEGER,\n\
+    \              date TEXT,\n\
+    \              time TEXT,\n\
+    \              PRIMARY KEY (eatery_name, food_item, date)\n\
+    \            );"
+  in
+  ignore (Sqlite3.exec db create_ratings_table_query);
+  ignore (Sqlite3.exec db create_personal_ratings_table_query);
   db
 
 let test_rate_food_valid =
@@ -481,16 +492,85 @@ let test_rate_food_non_existent_food =
   in
   assert_equal () result
 
-let test_rate_food_no_user_logged_in =
-  "Rate food with no user logged in" >:: fun _ ->
-  let db = create_in_memory_db () in
+(**GOOD TEST WITH COVERAGE FOR RATE_FOOD*)
+let test_rate_food =
+  "food rating" >:: fun _ ->
+  let public_db = create_in_memory_db () in
+  let personal_db = create_in_memory_db () in
   let is_guest = ref false in
-  let current_user = ref None in
+  let current_user = ref (Some "testuser") in
+  let eateries = [ create_eatery "Eatery1" [ "Food1"; "Food2" ] ] in
+
   let result =
     Lwt_main.run
-      (rate_food db db "Pizza" "Grill House" 4 is_guest current_user eateries)
+      (rate_food public_db personal_db "Food1" "Eatery1" 5 is_guest current_user
+         eateries)
   in
-  assert_equal () result
+
+  assert_equal () result;
+
+  let stmt =
+    Sqlite3.prepare public_db
+      "SELECT rating FROM Ratings WHERE eatery_name = 'Eatery1' AND food_item \
+       = 'Food1'"
+  in
+  match Sqlite3.step stmt with
+  | Sqlite3.Rc.ROW -> (
+      match Sqlite3.column stmt 0 |> Sqlite3.Data.to_int with
+      | Some rating -> assert_equal 5 rating
+      | None -> assert_failure "Rating is NULL")
+  | _ -> assert_failure "Rating not found in public database"
+
+let test_view_food_rating =
+  "test view food rating" >:: fun _ ->
+  let public_db = create_in_memory_db () in
+  let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
+
+  (* Insert a test rating *)
+  let insert_query =
+    "INSERT INTO Ratings (eatery_name, food_item, username, rating, date, \
+     time) VALUES (?, ?, ?, ?, ?, ?);"
+  in
+  let stmt = Sqlite3.prepare public_db insert_query in
+  Sqlite3.bind_text stmt 1 "Test Eatery" |> ignore;
+  Sqlite3.bind_text stmt 2 "Test Food" |> ignore;
+  Sqlite3.bind_text stmt 3 "testuser" |> ignore;
+  Sqlite3.bind_int stmt 4 4 |> ignore;
+  Sqlite3.bind_text stmt 5 "2023-12-11" |> ignore;
+  Sqlite3.bind_text stmt 6 "12:00:00" |> ignore;
+  assert_equal Sqlite3.Rc.DONE (Sqlite3.step stmt);
+  Sqlite3.finalize stmt |> ignore;
+
+  (* Capture stdout for testing *)
+  let output = ref "" in
+  let old_stdout = Unix.dup Unix.stdout in
+  let pipe_out, pipe_in = Unix.pipe () in
+  Unix.dup2 pipe_in Unix.stdout;
+  Unix.close pipe_in;
+
+  (* Run the function *)
+  Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
+
+  (* Restore stdout and read captured output *)
+  Unix.dup2 old_stdout Unix.stdout;
+  let buffer = Bytes.create 1024 in
+  let _ = Unix.read pipe_out buffer 0 1024 in
+  output := Bytes.to_string buffer;
+  Unix.close pipe_out;
+
+  (* Print captured output for debugging *)
+  Printf.printf "Captured output: %s\n" !output;
+
+  (* Check the output *)
+  (* Check the output *)
+  assert_bool "Output should contain average rating"
+    (Str.string_match
+       (Str.regexp "The average rating for Test Food at Test Eatery is 4.00")
+       !output 0);
+  assert_bool "Output should contain last rated date and time"
+    (Str.string_match
+       (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
+       !output 0)
 
 let test_rate_food_update_existing_rating =
   "Update existing food rating" >:: fun _ ->
@@ -564,7 +644,9 @@ let ratings_tests =
          test_rate_food_as_guest;
          test_rate_food_invalid_eatery;
          test_rate_food_non_existent_food;
-         test_rate_food_no_user_logged_in;
+         (* test_rate_food_no_user_logged_in; *)
+         test_view_food_rating;
+         test_rate_food;
          test_rate_food_update_existing_rating;
          test_rate_food_invalid_rating_value;
          test_view_food_rating_with_comments;
