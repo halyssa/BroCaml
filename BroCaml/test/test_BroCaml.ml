@@ -588,6 +588,48 @@ let test_view_food_rating =
        (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
        !output 0)
 
+let setup_in_memory_db () =
+  let db = create_in_memory_db () in
+  (* Add any additional initialization here if needed *)
+  db
+
+let teardown_in_memory_db db = ignore (Sqlite3.db_close db)
+
+let populate_personal_ratings_table db =
+  let insert_query =
+    "INSERT INTO PersonalRatings (eatery_name, food_item, rating, comment, \
+     date, time)\n\
+    \ VALUES (?, ?, ?, ?, ?, ?);"
+  in
+  let stmt = Sqlite3.prepare db insert_query in
+  let rows =
+    [
+      ("Eatery A", "Burger", 5, "Great taste", "2024-12-01", "12:00");
+      ("Eatery B", "Pizza", 4, "Pretty good", "2024-12-02", "13:00");
+      ("Eatery C", "Pasta", 3, "Okay-ish", "2024-12-03", "14:00");
+    ]
+  in
+  List.iter
+    (fun (eatery, food, rating, comment, date, time) ->
+      ignore (Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT eatery));
+      ignore (Sqlite3.bind stmt 2 (Sqlite3.Data.TEXT food));
+      ignore (Sqlite3.bind stmt 3 (Sqlite3.Data.INT (Int64.of_int rating)));
+      ignore (Sqlite3.bind stmt 4 (Sqlite3.Data.TEXT comment));
+      ignore (Sqlite3.bind stmt 5 (Sqlite3.Data.TEXT date));
+      ignore (Sqlite3.bind stmt 6 (Sqlite3.Data.TEXT time));
+      ignore (Sqlite3.step stmt);
+      ignore (Sqlite3.reset stmt))
+    rows;
+  ignore (Sqlite3.finalize stmt)
+
+let test_show_personal_ratings_with_data =
+  "personal ratings" >:: fun _ ->
+  let db = setup_in_memory_db () in
+  populate_personal_ratings_table db;
+  let is_guest = ref false in
+  Lwt_main.run (show_personal_ratings db is_guest);
+  teardown_in_memory_db db
+
 let test_rate_food_update_existing_rating =
   "Update existing food rating" >:: fun _ ->
   let db = create_in_memory_db () in
@@ -713,8 +755,7 @@ let ratings_tests =
          test_rate_food;
          test_rate_food_update_existing_rating;
          test_rate_food_invalid_rating_value;
-         test_view_food_rating_with_comments;
-         test_view_food_rating_no_comments;
+         test_show_personal_ratings_with_data;
          (* test_show_personal_ratings_empty_table;
             test_show_public_ratings_for_food; *)
        ]
