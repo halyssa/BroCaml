@@ -14,7 +14,7 @@ pm:
 publish: true
 title: "brOCaml"
 git-repo: "https://github.com/halyssa/brOCaml"
-demo-video-url: "https://www.youtube.com/watch?v=RywOzUCd4OQ&feature=youtu.be"
+demo-video-url: "https://youtu.be/RywOzUCd4OQ"
 desc: >
   FindMyFood is the ultimate terminal-based tool for navigating Cornell’s
 eateries and cafes with a personalized twist. Log in and let the program 
