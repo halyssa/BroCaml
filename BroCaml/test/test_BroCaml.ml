@@ -519,11 +519,46 @@ let test_rate_food_as_guest =
   in
   assert_equal () result
 
+
+
+
+(**ADD DOCUMENTATION*)
+let create_anon_db () =
+  let db = Sqlite3.db_open ":memory:" in
+  let create_ratings_table_query =
+    "CREATE TABLE IF NOT EXISTS Ratings (\n\
+    \              eatery_name TEXT,\n\
+    \              food_item TEXT,\n\
+    \              username TEXT,\n\
+    \              is_anonymous BOOLEAN,\n\
+    \              rating INTEGER,\n\
+    \              comment TEXT, \n\
+    \              date TEXT,\n\
+    \              time TEXT,\n\
+    \              PRIMARY KEY (eatery_name, food_item, username, date, is_anonymous)\n\
+    \            );"
+  in
+  let create_personal_ratings_table_query =
+    "CREATE TABLE IF NOT EXISTS PersonalRatings (\n\
+    \              eatery_name TEXT,\n\
+    \              food_item TEXT,\n\
+    \              rating INTEGER,\n\
+    \              comment TEXT, \n\n\
+    \                  date TEXT,\n\
+    \              time TEXT,\n\
+    \              PRIMARY KEY (eatery_name, food_item, date)\n\
+    \            );"
+  in
+  ignore (Sqlite3.exec db create_ratings_table_query);
+  ignore (Sqlite3.exec db create_personal_ratings_table_query);
+  db
+
+
 (** [test_rate_food] tests the [rate_food] function when a registered user rates food. *)
 let test_rate_food =
   "food rating" >:: fun _ ->
-  let public_db = create_in_memory_db () in
-  let personal_db = create_in_memory_db () in
+  let public_db = create_anon_db () in
+  let personal_db = create_anon_db () in
   let is_guest = ref false in
   let current_user = "testuser" in
   let eateries = [ create_eatery "Eatery1" [ "Food1"; "Food2" ] ] in
@@ -538,62 +573,76 @@ let test_rate_food =
 
   let stmt =
     Sqlite3.prepare public_db
-      "SELECT rating FROM Ratings WHERE eatery_name = 'Eatery1' AND food_item \
-       = 'Food1'"
+      "SELECT rating FROM Ratings WHERE eatery_name = 'Eatery1' AND food_item = 'Food1'"
   in
   match Sqlite3.step stmt with
   | Sqlite3.Rc.ROW -> (
-      match Sqlite3.column stmt 0 |> Sqlite3.Data.to_int with
-      | Some rating -> assert_equal 5 rating
-      | None -> assert_failure "Rating is NULL")
+      match Sqlite3.column stmt 0 with
+      | Sqlite3.Data.INT rating -> assert_equal 5 (Int64.to_int rating)
+      | _ -> assert_failure "Rating is not an integer")
   | _ -> assert_failure "Rating not found in public database"
+
 
 (** [test_view_food_rating] verifies the functionality of the [view_food_rating] to ensure that it correctly displays the average rating 
     and the date/time of the last rating for a given food item at a specified eatery. *)
-let test_view_food_rating =
-  "view food rating" >:: fun _ ->
-  let public_db = create_in_memory_db () in
-  let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
+    (** [test_view_food_rating] verifies the functionality of the [view_food_rating] to ensure that it correctly displays the average rating 
+    and the date/time of the last rating for a given food item at a specified eatery. *)
 
-  let insert_query =
-    "INSERT INTO Ratings (eatery_name, food_item, username, rating, date, \
-     time) VALUES (?, ?, ?, ?, ?, ?);"
-  in
-  let stmt = Sqlite3.prepare public_db insert_query in
-  Sqlite3.bind_text stmt 1 "Test Eatery" |> ignore;
-  Sqlite3.bind_text stmt 2 "Test Food" |> ignore;
-  Sqlite3.bind_text stmt 3 "testuser" |> ignore;
-  Sqlite3.bind_int stmt 4 4 |> ignore;
-  Sqlite3.bind_text stmt 5 "2023-12-11" |> ignore;
-  Sqlite3.bind_text stmt 6 "12:00:00" |> ignore;
-  assert_equal Sqlite3.Rc.DONE (Sqlite3.step stmt);
-  Sqlite3.finalize stmt |> ignore;
-
-  let output = ref "" in
-  let old_stdout = Unix.dup Unix.stdout in
-  let pipe_out, pipe_in = Unix.pipe () in
-  Unix.dup2 pipe_in Unix.stdout;
-  Unix.close pipe_in;
-
-  Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
-
-  Unix.dup2 old_stdout Unix.stdout;
-  let buffer = Bytes.create 1024 in
-  let _ = Unix.read pipe_out buffer 0 1024 in
-  output := Bytes.to_string buffer;
-  Unix.close pipe_out;
-
-  Printf.printf "Captured output: %s\n" !output;
-
-  assert_bool "Output should contain average rating"
-    (Str.string_match
-       (Str.regexp "The average rating for Test Food at Test Eatery is 4.00")
-       !output 0);
-  assert_bool "Output should contain last rated date and time"
-    (Str.string_match
-       (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
-       !output 0)
-
+    let test_view_food_rating =
+      "view food rating" >:: fun _ ->
+        let public_db = create_anon_db () in
+        let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
+    
+        (* Insert a rating for testing *)
+        let insert_query =
+          "INSERT INTO Ratings (eatery_name, food_item, username, is_anonymous, rating, date, time) VALUES (?, ?, ?, ?, ?, ?, ?);"
+        in
+        let stmt = Sqlite3.prepare public_db insert_query in
+        Sqlite3.bind_text stmt 1 "Test Eatery" |> ignore;
+        Sqlite3.bind_text stmt 2 "Test Food" |> ignore;
+        Sqlite3.bind_text stmt 3 "testuser" |> ignore;
+        Sqlite3.bind_int stmt 4 0 |> ignore; (* Assuming non-anonymous *)
+        Sqlite3.bind_int stmt 5 4 |> ignore;
+        Sqlite3.bind_text stmt 6 "2023-12-11" |> ignore;
+        Sqlite3.bind_text stmt 7 "12:00:00" |> ignore;
+        assert_equal Sqlite3.Rc.DONE (Sqlite3.step stmt);
+        Sqlite3.finalize stmt |> ignore;
+    
+        (* Capture stdout for testing *)
+        let output = ref "" in
+        let old_stdout = Unix.dup Unix.stdout in
+        let pipe_out, pipe_in = Unix.pipe () in
+        Unix.dup2 pipe_in Unix.stdout; (* Redirect stdout to pipe *)
+        Unix.close pipe_in;
+    
+        (* Run the function *)
+        Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
+    
+        (* Flush the output explicitly to ensure it reaches the pipe *)
+        flush stdout;
+    
+        (* Restore stdout and read captured output *)
+        Unix.dup2 old_stdout Unix.stdout; (* Restore original stdout *)
+        let buffer = Bytes.create 1024 in
+        let bytes_read = Unix.read pipe_out buffer 0 1024 in
+        output := Bytes.sub_string buffer 0 bytes_read; (* Capture the output *)
+        Unix.close pipe_out; (* Close the write end of the pipe *)
+    
+        (* Print captured output for debugging *)
+        Printf.printf "Captured output: %s\n" !output;
+    
+        (* Check the output *)
+        assert_bool "Output should contain average rating"
+          (Str.string_match
+             (Str.regexp "The average rating for Test Food at Test Eatery is 4.00")
+             !output 0);
+        assert_bool "Output should contain last rated date and time"
+          (Str.string_match
+             (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
+             !output 0)
+    
+    
+           
 (** [setup_in_memory_db] initializes a new in-memory SQLite database. *)
 let setup_in_memory_db () =
   let db = create_in_memory_db () in

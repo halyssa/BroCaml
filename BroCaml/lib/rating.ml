@@ -149,50 +149,7 @@ let view_food_rating public_db food eatery eateries =
                   "The average rating for %s at %s is %.2f. (Last rated on %s \
                    at %s)\n"
                   food eatery avg_rating date time;
-                (* Ask if the user wants to view comments *)
-                print_string
-                  "Would you like to view comments for this food item? (y/n): ";
-                let view_comments = read_line () in
-                if view_comments = "y" then
-                  (* Fetch and display comments if the user chooses to view
-                     them *)
-                  let comment_query =
-                    "SELECT username, comment, time FROM Ratings WHERE \
-                     food_item = ? AND eatery_name = ? AND comment IS NOT \
-                     NULL;"
-                  in
-                  let comment_stmt = Sqlite3.prepare public_db comment_query in
-                  Lwt.finalize
-                    (fun () ->
-                      Sqlite3.bind_text comment_stmt 1 food |> ignore;
-                      Sqlite3.bind_text comment_stmt 2 eatery |> ignore;
-                      let rec print_comments () =
-                        match Sqlite3.step comment_stmt with
-                        | Sqlite3.Rc.ROW ->
-                            let username =
-                              match Sqlite3.column comment_stmt 0 with
-                              | Sqlite3.Data.TEXT username -> username
-                              | _ -> "anonymous"
-                            in
-                            let comment =
-                              match Sqlite3.column comment_stmt 1 with
-                              | Sqlite3.Data.TEXT comment -> comment
-                              | _ -> ""
-                            in
-                            let time =
-                              match Sqlite3.column comment_stmt 2 with
-                              | Sqlite3.Data.TEXT time -> time
-                              | _ -> "unknown time"
-                            in
-                            Printf.printf "%s (%s): %s\n" username time comment;
-                            print_comments ()
-                        | _ -> ()
-                      in
-                      print_comments ();
-                      Lwt.return ())
-                    (fun () ->
-                      Lwt.return (ignore (Sqlite3.finalize comment_stmt)))
-                else Lwt.return ()
+                Lwt.return ()
             | Sqlite3.Data.NULL, _, _ ->
                 (* Handle no ratings *)
                 Printf.printf "No ratings found for %s at %s.\n" food eatery;
