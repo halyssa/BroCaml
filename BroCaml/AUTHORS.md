@@ -4,6 +4,9 @@ Shannon Liu sjl356
 Jo Raghavan jbr266
 Brooke Ye by239
 
+Authors note: May need to rerun dune test a couple times before it goes through (otherwise it
+may take a while to load)
+
 AI Acknowledgement:
 - Used ChatGPT to determine the best library to implement for fetching data
 - Used ChatGPT to assist in implementation of fetching data from a URL to a JSON
