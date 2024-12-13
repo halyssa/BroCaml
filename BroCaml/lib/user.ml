@@ -3,6 +3,19 @@ type eatery = {
   menu : string list;
 }
 
+(** Abstraction Function (AF):
+    - An `eatery` value { name; menu } represents a dining establishment.
+    - `name` is the name of the eatery as a non-empty string.
+    - `menu` is a list of strings, each representing a food item served by the eatery. 
+      This list must be non-empty.
+*)
+
+(** Representation Invariant (RI):
+    - `name` must not be an empty string or contain only whitespace.
+    - `menu` must be a non-empty list.
+    - Each item in the `menu` list must not contain leading or trailing
+      whitespace. *)
+
 let get_name eatery = eatery.name
 let get_menu eatery = eatery.menu
 
