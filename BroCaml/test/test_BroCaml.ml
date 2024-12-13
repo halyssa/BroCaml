@@ -519,10 +519,9 @@ let test_rate_food_as_guest =
   in
   assert_equal () result
 
-
-
-
-(**ADD DOCUMENTATION*)
+(** [create_anon_db] creates an in-memory SQLite database for testing purposes. The function creates a [Ratings] table with columns for [eatery_name], [food_item], [username], [is_anonymous], [rating], [comment], 
+[date], and [time], creates a [PersonalRatings] table with columns for [eatery_name], [food_item], [rating], [comment], 
+[date], and [time], where the primary key is a combination of [eatery_name], [food_item], and [date], and returns the initialized database instance. *)
 let create_anon_db () =
   let db = Sqlite3.db_open ":memory:" in
   let create_ratings_table_query =
