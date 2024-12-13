@@ -75,7 +75,6 @@ let rec prompt_user_sort_3 db eateries =
   let table = "Ratings" in
   match choice with
   | "" ->
-      (* Default option: ascending chronological order *)
       let user = !current_user in
       let%lwt () = show_personal_ratings db user is_guest in
       prompt_user_sort_3 db eateries
@@ -103,7 +102,7 @@ let rec prompt_user_sort_3 db eateries =
   | "8" ->
       let%lwt () = sort_by_date_desc db table in
       prompt_user_sort_3 db eateries
-  | "9" -> Lwt.return () (* Exit sorting menu *)
+  | "9" -> Lwt.return ()
   | _ ->
       print_endline "Invalid choice. Please try again.";
       prompt_user_sort_3 db eateries
@@ -122,7 +121,7 @@ let rec prompt_user_sort_4 db food eateries =
   | "1" | "2" | "3" | "4" | "5" | "6" ->
       show_public_ratings db food choice;
       prompt_user_sort_4 db food eateries
-  | "7" -> Lwt.return () (* Exit sorting menu *)
+  | "7" -> Lwt.return ()
   | _ ->
       print_endline "Invalid choice. Please try again.";
       prompt_user_sort_4 db food eateries
@@ -175,8 +174,6 @@ let rec prompt_user_rate public_db personal_db eateries =
       let%lwt () = view_food_rating public_db food eatery eateries in
       prompt_user_rate public_db personal_db eateries
   | [ "3" ] ->
-      (* let%lwt () = prompt_user_sort_3 public_db eateries in prompt_user_rate
-         public_db public_db eateries *)
       let user = !current_user in
       let%lwt () = show_personal_ratings public_db user is_guest in
       prompt_user_rate public_db personal_db eateries
@@ -209,7 +206,6 @@ let user_entered public_db personal_db =
   let%lwt () = prompt_user public_db personal_db eateries in
   Lwt.return_unit
 
-(* Prompt the user to log in or create an account *)
 let rec login_or_create_account db =
   print_endline "Welcome! Please choose an action:";
   print_endline "1. Log in";
@@ -219,7 +215,6 @@ let rec login_or_create_account db =
   let choice = read_line () in
   match choice with
   | "1" ->
-      (* Login flow *)
       print_string "Enter username: ";
       let username = read_line () in
       print_string "Enter password: ";
@@ -227,12 +222,10 @@ let rec login_or_create_account db =
       if%lwt validate_user db username password then (
         Printf.printf "Welcome back, %s!\n" username;
         current_user := username;
-        (* Set the current user *)
-        Lwt.return_unit
-        (* Exit recursion on success *))
+        Lwt.return_unit)
       else (
         print_endline "Invalid username or password. Please try again.\n";
-        login_or_create_account db (* Recursive call *))
+        login_or_create_account db)
   | "2" ->
       print_string "Choose a username: ";
       let username = read_line () in
@@ -243,23 +236,19 @@ let rec login_or_create_account db =
       else (
         print_string "Choose a password: ";
         let password = read_line () in
-        (* Create the user asynchronously *)
         let finalize_fn stmt db = ignore (Sqlite3.finalize stmt) in
         Lwt.ignore_result
           (create_user ~finalize:finalize_fn db username password;
            print_endline "Account created successfully!";
            current_user := username;
-           Lwt.return_unit (* To ensure we're returning a proper Lwt value *));
+           Lwt.return_unit);
         Lwt.return_unit)
-      (* Set the current user *)
   | "3" ->
-      (* Proceed as a guest *)
       print_endline "You are now proceeding as a guest.";
       is_guest := true;
       Lwt.return_unit
   | "4" -> quit_program ()
   | _ ->
-      (* Invalid input, prompt again *)
       print_endline "Invalid choice. Please try again.\n";
       login_or_create_account db
 
@@ -279,7 +268,6 @@ let debug_list_tables db db_name =
   fetch_tables ();
   Sqlite3.finalize stmt |> ignore
 
-(* main *)
 let () =
   Lwt_main.run
     (let%lwt () = login_or_create_account public_db in
