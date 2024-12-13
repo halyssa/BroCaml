@@ -4,8 +4,8 @@ open Sqlite3
 open Login
 open User
 
-let rate_food public_db personal_db food eatery rating is_guest
-    (current_user : string) anonymous eateries =
+let rate_food public_db personal_db food eatery rating is_guest current_user
+    is_anon eateries =
   if !is_guest then
     Lwt.return
       (print_endline
@@ -37,53 +37,57 @@ let rate_food public_db personal_db food eatery rating is_guest
               current_timestamp.Unix.tm_min current_timestamp.Unix.tm_sec
           in
 
-          (* Insert or update the public database *)
           let insert_public () =
             let query =
-              "INSERT INTO Ratings (eatery_name, food_item, username, \
-               is_anonymous, rating, date, time)\n\
-              \               VALUES (?, ?, ?, ?, ?, ?, ?)\n\
-              \               ON CONFLICT(eatery_name, food_item, username, \
-               date, is_anonymous)\n\
-              \               DO UPDATE SET rating = excluded.rating, time = \
-               excluded.time;"
+              if is_anon then
+                "INSERT INTO Ratings (eatery_name, food_item, username, \
+                 rating, date, time)\n\
+                 VALUES (?, ?, 'anonymous', ?, ?, ?);"
+              else
+                "INSERT INTO Ratings (eatery_name, food_item, username, \
+                 rating, date, time)\n\
+                 VALUES (?, ?, ?, ?, ?, ?)\n\
+                 ON CONFLICT(eatery_name, food_item, username, date)\n\
+                 DO UPDATE SET rating = excluded.rating, time = excluded.time;"
             in
             let stmt = Sqlite3.prepare public_db query in
             Lwt.finalize
               (fun () ->
                 Sqlite3.bind_text stmt 1 eatery |> ignore;
                 Sqlite3.bind_text stmt 2 food |> ignore;
-                Sqlite3.bind_text stmt 3
-                  (if anonymous then "anonymous" else username)
+                if not is_anon then Sqlite3.bind_text stmt 3 username |> ignore;
+                Sqlite3.bind_int stmt (if is_anon then 3 else 4) rating
                 |> ignore;
-                Sqlite3.bind_int stmt 4 (if anonymous then 1 else 0) |> ignore;
-                Sqlite3.bind_int stmt 5 rating |> ignore;
-                Sqlite3.bind_text stmt 6 current_date |> ignore;
-                Sqlite3.bind_text stmt 7 current_time |> ignore;
+                Sqlite3.bind_text stmt (if is_anon then 4 else 5) current_date
+                |> ignore;
+                Sqlite3.bind_text stmt (if is_anon then 5 else 6) current_time
+                |> ignore;
 
                 match Sqlite3.step stmt with
                 | Sqlite3.Rc.DONE ->
-                    Printf.printf "Public rating successfully submitted%s!\n"
-                      (if anonymous then " anonymously" else "");
-                    Lwt.return_unit
+                    Lwt.return
+                      (print_endline
+                         "Rating submitted or updated successfully in the \
+                          public database!")
                 | Sqlite3.Rc.ERROR ->
-                    Printf.printf "Error in public DB submission: %s\n"
-                      (Sqlite3.errmsg public_db);
-                    Lwt.return_unit
+                    Lwt.return
+                      (print_endline
+                         ("Error submitting or updating public rating: "
+                        ^ Sqlite3.errmsg public_db))
                 | _ ->
-                    print_endline
-                      "Unexpected error during public rating submission.";
-                    Lwt.return_unit)
+                    Lwt.return
+                      (print_endline
+                         "Unexpected error during public rating submission."))
               (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
           in
 
-          (* Insert or update the personal database *)
           let insert_personal () =
             let query =
               "INSERT INTO PersonalRatings (eatery_name, food_item, rating, \
-               date, time) VALUES (?, ?, ?, ?, ?) ON CONFLICT(eatery_name, \
-               food_item, date) DO UPDATE SET rating = excluded.rating, time = \
-               excluded.time;"
+               date, time)\n\
+               VALUES (?, ?, ?, ?, ?)\n\
+               ON CONFLICT(eatery_name, food_item, date)\n\
+               DO UPDATE SET rating = excluded.rating, time = excluded.time;"
             in
             let stmt = Sqlite3.prepare personal_db query in
             Lwt.finalize
@@ -96,22 +100,22 @@ let rate_food public_db personal_db food eatery rating is_guest
 
                 match Sqlite3.step stmt with
                 | Sqlite3.Rc.DONE ->
-                    print_endline
-                      "Rating submitted or updated successfully in your \
-                       personal database!";
-                    Lwt.return_unit
+                    Lwt.return
+                      (print_endline
+                         "Rating submitted or updated successfully in your \
+                          personal database!")
                 | Sqlite3.Rc.ERROR ->
-                    Printf.printf "Error in personal DB submission: %s\n"
-                      (Sqlite3.errmsg personal_db);
-                    Lwt.return_unit
+                    Lwt.return
+                      (print_endline
+                         ("Error submitting or updating personal rating: "
+                        ^ Sqlite3.errmsg personal_db))
                 | _ ->
-                    print_endline
-                      "Unexpected error during personal rating submission.";
-                    Lwt.return_unit)
+                    Lwt.return
+                      (print_endline
+                         "Unexpected error during personal rating submission."))
               (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
           in
 
-          (* Execute both public and personal database updates *)
           let%lwt () = insert_public () in
           let%lwt () = insert_personal () in
           Lwt.return ()
@@ -130,13 +134,11 @@ let view_food_rating public_db food eatery eateries =
     let stmt = Sqlite3.prepare public_db query in
     Lwt.catch
       (fun () ->
-        (* Bind parameters to the query *)
         Sqlite3.bind_text stmt 1 food |> ignore;
         Sqlite3.bind_text stmt 2 eatery |> ignore;
 
         match Sqlite3.step stmt with
         | Sqlite3.Rc.ROW -> (
-            (* Extract the average rating, date, and time *)
             match
               ( Sqlite3.column stmt 0,
                 Sqlite3.column stmt 1,
@@ -151,25 +153,19 @@ let view_food_rating public_db food eatery eateries =
                   food eatery avg_rating date time;
                 Lwt.return ()
             | Sqlite3.Data.NULL, _, _ ->
-                (* Handle no ratings *)
                 Printf.printf "No ratings found for %s at %s.\n" food eatery;
                 Lwt.return ()
             | _ ->
-                (* Handle unexpected data types *)
                 print_endline
                   "Unexpected data type while fetching food ratings.";
                 Lwt.return ())
         | _ ->
-            (* Handle unexpected SQL errors *)
             print_endline "Error while fetching food ratings.";
             Lwt.return ())
       (fun exn ->
-        (* Handle exceptions *)
         print_endline ("Error: " ^ Printexc.to_string exn);
         Lwt.return ())
-    >>= fun () ->
-    (* Finalize the statement to release resources *)
-    Lwt.return (Sqlite3.finalize stmt |> ignore)
+    >>= fun () -> Lwt.return (Sqlite3.finalize stmt |> ignore)
 
 let show_personal_ratings db (username : string) is_guest =
   if !is_guest then
@@ -185,10 +181,8 @@ let show_personal_ratings db (username : string) is_guest =
     let stmt = Sqlite3.prepare db query in
     Lwt.finalize
       (fun () ->
-        (* Bind the username to the SQL query *)
         Sqlite3.bind_text stmt 1 username |> ignore;
 
-        (* Debugging: Print the username to verify it's passed correctly *)
         Printf.printf "Querying personal ratings for username: %s\n" username;
 
         print_endline "Displaying all personal ratings:";
@@ -220,11 +214,11 @@ let show_personal_ratings db (username : string) is_guest =
               Printf.printf
                 "Eatery: %s | Food: %s | Rating: %d | Date: %s | Time: %s\n"
                 eatery_name food_item rating date time;
-              fetch_rows () (* Recursive call to fetch next row *)
+              fetch_rows ()
           | Sqlite3.Rc.DONE ->
               Printf.printf " \n Finished displaying personal ratings for %s.\n"
                 username;
-              Lwt.return_unit (* End of rows *)
+              Lwt.return_unit
           | _ ->
               print_endline "Error while processing personal ratings.";
               Lwt.return_unit
@@ -245,7 +239,7 @@ let show_public_ratings db food choice =
     | "4" -> query ^ " ORDER BY eatery_name ASC"
     | "5" -> query ^ " ORDER BY date ASC, time ASC"
     | "6" -> query ^ " ORDER BY date DESC, time DESC"
-    | _ -> query (* Default case, no sorting *)
+    | _ -> query
   in
   let stmt = Sqlite3.prepare db sorted_query in
   try
@@ -281,8 +275,6 @@ let show_public_ratings db food choice =
     Sqlite3.finalize stmt |> ignore;
     raise exn
 
-(**[print_results] is a helper function to print the results from sorting a
-   database *)
 let print_results stmt =
   let rec print_rows () =
     match Sqlite3.step stmt with
@@ -300,7 +292,6 @@ let print_results stmt =
   in
   print_rows ()
 
-(* sorting by rating *)
 let sort_by_highest_rating db table =
   let query =
     Printf.sprintf
@@ -329,7 +320,6 @@ let sort_by_lowest_rating db table =
       Lwt.return ())
     (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
-(* sort abc *)
 let sort_by_eatery_alphabetical db table =
   let query =
     Printf.sprintf
@@ -386,7 +376,6 @@ let sort_by_food_reverse_alphabetical db table =
       Lwt.return ())
     (fun () -> Lwt.return (ignore (Sqlite3.finalize stmt)))
 
-(* chronological *)
 let sort_by_date_asc db table =
   let query =
     Printf.sprintf

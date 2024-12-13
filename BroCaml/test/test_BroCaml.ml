@@ -585,15 +585,11 @@ let test_rate_food =
 
 (** [test_view_food_rating] verifies the functionality of the [view_food_rating] to ensure that it correctly displays the average rating 
     and the date/time of the last rating for a given food item at a specified eatery. *)
-    (** [test_view_food_rating] verifies the functionality of the [view_food_rating] to ensure that it correctly displays the average rating 
-    and the date/time of the last rating for a given food item at a specified eatery. *)
-
     let test_view_food_rating =
       "view food rating" >:: fun _ ->
         let public_db = create_anon_db () in
         let eateries = [ create_eatery "Test Eatery" [ "Test Food" ] ] in
     
-        (* Insert a rating for testing *)
         let insert_query =
           "INSERT INTO Ratings (eatery_name, food_item, username, is_anonymous, rating, date, time) VALUES (?, ?, ?, ?, ?, ?, ?);"
         in
@@ -608,30 +604,24 @@ let test_rate_food =
         assert_equal Sqlite3.Rc.DONE (Sqlite3.step stmt);
         Sqlite3.finalize stmt |> ignore;
     
-        (* Capture stdout for testing *)
         let output = ref "" in
         let old_stdout = Unix.dup Unix.stdout in
         let pipe_out, pipe_in = Unix.pipe () in
         Unix.dup2 pipe_in Unix.stdout; (* Redirect stdout to pipe *)
         Unix.close pipe_in;
     
-        (* Run the function *)
         Lwt_main.run (view_food_rating public_db "Test Food" "Test Eatery" eateries);
     
-        (* Flush the output explicitly to ensure it reaches the pipe *)
         flush stdout;
     
-        (* Restore stdout and read captured output *)
-        Unix.dup2 old_stdout Unix.stdout; (* Restore original stdout *)
+        Unix.dup2 old_stdout Unix.stdout; 
         let buffer = Bytes.create 1024 in
         let bytes_read = Unix.read pipe_out buffer 0 1024 in
-        output := Bytes.sub_string buffer 0 bytes_read; (* Capture the output *)
-        Unix.close pipe_out; (* Close the write end of the pipe *)
+        output := Bytes.sub_string buffer 0 bytes_read; 
+        Unix.close pipe_out;
     
-        (* Print captured output for debugging *)
         Printf.printf "Captured output: %s\n" !output;
     
-        (* Check the output *)
         assert_bool "Output should contain average rating"
           (Str.string_match
              (Str.regexp "The average rating for Test Food at Test Eatery is 4.00")
@@ -641,8 +631,6 @@ let test_rate_food =
              (Str.regexp ".*Last rated on [0-9-]+ at [0-9:]+.*")
              !output 0)
     
-    
-           
 (** [setup_in_memory_db] initializes a new in-memory SQLite database. *)
 let setup_in_memory_db () =
   let db = create_in_memory_db () in
