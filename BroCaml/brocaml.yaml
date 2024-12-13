@@ -16,12 +16,22 @@ title: "brOCaml"
 git-repo: "https://github.com/halyssa/brOCaml"
 demo-video-url: "https://youtu.be/pOVIhKPEyAc"
 desc: >
-  FindMyFood is the ultimate terminal-based tool for navigating Cornell’s 
-  eateries and cafes with a personalized twist. Log in, set your cuisine 
-  preferences, and let the program do the rest—sorting search results by 
-  both ratings and your favorite cuisines. Just type in a dish, and it 
-  instantly pulls real-time data on where it’s being served across campus, 
-  prioritizing options that match your tastes and the community’s top ratings. 
-  With seamless menu browsing, popularity sorting, and preference-based 
-  recommendations, Find My Food is your go-to guide for the best of Cornell 
-  dining—right from the command line.
+  FindMyFood is the ultimate terminal-based tool for navigating Cornell’s
+eateries and cafes with a personalized twist. Log in, set your cuisine
+preferences, and let the program do the rest—sorting search results by
+both ratings and your favorite cuisines. Just type in a dish, and it
+instantly pulls real-time data on where it’s being served across campus,
+prioritizing options that match your tastes and the community’s top ratings.
+With seamless menu browsing and various sorting options, FindMyFood is your
+go-to guide for the best of Cornell dining—right from the command line.
+
+
+As a user, you can create an account and log in to rate food items at
+different eateries, ensuring your personal preferences are considered.
+You can view your own ratings, track what you’ve enjoyed most, and gain
+insights into your dining history. Additionally, FindMyFood allows you to
+see overall ratings for food items from eateries, giving you access to
+community feedback and helping you make well-informed dining choices.
+Whether you're a guest or a registered user, FindMyFood tailors your
+experience to help you discover and interact with Cornell’s diverse dining
+options in a way that suits your tastes and needs.
